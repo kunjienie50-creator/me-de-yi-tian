@@ -1,0 +1,11 @@
+# 统一换行符，避免 Windows / macOS 混用产生无意义的 diff
+* text=auto eol=lf
+
+# 二进制文件不做转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

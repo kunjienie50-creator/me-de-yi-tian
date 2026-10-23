@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+
+# 本地工具产物（npm 缓存、自检截图）
+.npm-cache
+.dsh-check
