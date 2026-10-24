@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { DemoTag, Empty, Field, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
 import { fmtClock, fmtMinutes, fmtRelative, fmtStopwatch, isoToLocalInput, minutesBetween, todayKey } from '../lib/dates.js'
 import { compressImage, deleteImage, getImageUrl, putImage } from '../lib/images.js'
+import { clearLeakDismiss, timerLeak } from '../lib/timer.js'
 import { uid, useStore } from '../store.jsx'
 
 export default function Timer() {
-  const { state, dispatch, notify, now } = useStore()
+  const { state, dispatch, notify, now, today } = useStore()
   const [stopOpen, setStopOpen] = useState(false)
   const [pickOpen, setPickOpen] = useState(false)
   const timer = state.timer
 
   // now 来自 store 里每秒更新的共享时钟，界面才会真的走字
   const elapsed = timer ? now - new Date(timer.startedAt).getTime() : 0
-  const longRun = timer && elapsed > 8 * 3600 * 1000
+  // 和首页同一条规则：开了 5 小时以上，或者跨天了，才算「可能忘了停」
+  const leak = timerLeak(timer, now, today)
+  const longRun = Boolean(leak)
 
   const [makeup, setMakeup] = useState('')
   const [bookmark, setBookmark] = useState(null)
@@ -77,6 +80,7 @@ export default function Timer() {
         : null,
     })
     localStorage.removeItem('me-de-yi-tian.timer-bookmark')
+    clearLeakDismiss()
     notify(lit ? '记录了时间，并点亮了一个节点' : '时间记录好了', 'ok')
   }
 
@@ -101,11 +105,14 @@ export default function Timer() {
           <p className="timer-card__since">从 {fmtClock(timer.startedAt)} 开始</p>
           {longRun ? (
             <div className="notice notice--warn">
-              <p>这个计时已经开了很久。如果忘了停，可以补录一个结束时间，我不会自动猜。</p>
+              <p>
+                {leak ? leak.reason : '这次计时看起来忘了停'}。如果确实忘了停，补一个<strong>实际结束时间</strong>，我不会自动猜成现在。
+              </p>
               <div className="row-2">
                 <input
                   className="input"
                   type="datetime-local"
+                  aria-label="实际几点结束的"
                   value={makeup}
                   min={isoToLocalInput(timer.startedAt)}
                   max={isoToLocalInput(new Date().toISOString())}

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { clearState, loadState, saveState } from './lib/storage.js'
 import { SCHEMA_VERSION, createSeedState } from './lib/seed.js'
-import { diffDays, todayKey } from './lib/dates.js'
+import { diffDays, toKey, todayKey } from './lib/dates.js'
 import { guessTagId } from './lib/tags.js'
 
 export function uid(prefix = 'id') {
@@ -32,6 +32,22 @@ function initState() {
   merged.projects = (merged.projects || []).map((project) => ({ tag: guessTagId(project.title), ...project }))
   merged.box = merged.box || []
   merged.customTags = merged.customTags || []
+  // 老数据没有序号：按项目内日期先后补一个，保证「前驱在前」有依据
+  const byProject = new Map()
+  merged.tasks.forEach((task) => {
+    if (!task.projectId) return
+    if (!byProject.has(task.projectId)) byProject.set(task.projectId, [])
+    byProject.get(task.projectId).push(task)
+  })
+  byProject.forEach((list) => {
+    list
+      .sort((a, b) => diffDays(b.date || '1970-01-01', a.date || '1970-01-01'))
+      .forEach((task, index) => {
+        if (!task.seq) task.seq = index + 1
+        if (!task.priority) task.priority = 'mid'
+      })
+  })
+  merged.tasks = merged.tasks.map((task) => ({ priority: 'mid', ...task }))
   return merged
 }
 
@@ -250,18 +266,22 @@ export function StoreProvider({ children }) {
     return () => clearTimeout(id)
   }, [toast])
 
+  // 用共享时钟算「今天」：跨过零点不用刷新，页面自己就换到新的一天
+  const today = toKey(new Date(now))
+
   const value = useMemo(
     () => ({
       state,
       dispatch,
       now,
+      today,
       notify: (message, type = 'info') => setToast({ message, type }),
       resetAll: () => {
         clearState()
         dispatch({ type: 'reset' })
       },
     }),
-    [state, now],
+    [state, now, today],
   )
 
   return (
@@ -293,7 +313,13 @@ export function todayTasks(state, today = todayKey()) {
 export function projectNodes(state, projectId) {
   return state.tasks
     .filter((task) => task.projectId === projectId && task.status !== 'cancelled' && task.status !== 'boxed')
-    .sort((a, b) => diffDays(b.date, a.date))
+    .sort((a, b) => {
+      // 先按序号（前驱在前），序号相同再按日期
+      const sa = Number(a.seq) || 0
+      const sb = Number(b.seq) || 0
+      if (sa && sb && sa !== sb) return sa - sb
+      return diffDays(b.date, a.date)
+    })
 }
 
 export function projectProgress(state, projectId) {

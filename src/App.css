@@ -2995,3 +2995,375 @@ button:focus-visible {
   margin-top: 8px;
   color: #ffd2b8;
 }
+
+/* ---------- 第四轮：漏停提示条 ---------- */
+.leak-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fff1e6, #ffe9dd);
+  border: 1px solid rgba(239, 117, 70, 0.28);
+}
+
+.leak-bar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.leak-bar__text strong {
+  color: var(--peach-deep);
+  font-size: 14px;
+}
+
+.leak-bar__actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---------- 第四轮：新建目标（一句话弹窗 + 清单 + 日历） ---------- */
+.loading-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 18px;
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink-soft);
+}
+
+.loading-card p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.node-editor--seq li {
+  align-items: flex-start;
+}
+
+.node-editor__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.node-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-editor__row .input--num {
+  width: 72px;
+  flex: none;
+}
+
+.prio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.prio--high {
+  background: #ffe2d4;
+  color: #b3562c;
+}
+
+.prio--mid {
+  background: #e2eefc;
+  color: #2f6499;
+}
+
+.prio--low {
+  background: #efe6dd;
+  color: #6d5a4d;
+}
+
+.chips--tiny {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.chip--tiny {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+.ddl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ddl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px dashed rgba(239, 117, 70, 0.5);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ddl-chip__hint {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.cal {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--card-shadow);
+  touch-action: pan-y;
+}
+
+.cal__weekhead,
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cal__weekhead {
+  margin-bottom: 6px;
+}
+
+.cal__weekhead-cell {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.cal__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 78px;
+  padding: 5px 4px 6px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: #fdf6ef;
+  text-align: left;
+  overflow: hidden;
+}
+
+.cal__cell--pad {
+  background: transparent;
+  min-height: 0;
+}
+
+.cal__cell.is-today {
+  border-color: rgba(239, 117, 70, 0.55);
+  background: #fff3ea;
+}
+
+.cal__cell.is-ddl {
+  border-color: rgba(143, 134, 216, 0.6);
+  background: #f4f1fd;
+}
+
+.cal__date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cal__pin {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 10px;
+}
+
+.cal__load {
+  font-size: 9px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+.cal__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.cal-block {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  font-size: 9px;
+  line-height: 1.15;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.cal-block--high {
+  background: #ffd9c4;
+  color: #8c3f1d;
+}
+
+.cal-block--mid {
+  background: #d9e8fb;
+  color: #2f5c8c;
+}
+
+.cal-block--low {
+  background: #ece3d9;
+  color: #6d5a4d;
+}
+
+.cal-block.is-selected {
+  outline: 2px solid rgba(239, 117, 70, 0.7);
+  outline-offset: 1px;
+}
+
+.cal-block.is-dragging {
+  opacity: 0.55;
+}
+
+.cal-block__seq {
+  font-weight: 700;
+  flex: none;
+}
+
+.cal-block__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sched-node__seq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--peach-soft, #ffe6d8);
+  color: var(--peach-deep);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+/* 日历里的方块只放序号，完整的名字在图例里 */
+.cal-block {
+  justify-content: center;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cal-pick {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff3ea;
+  color: var(--peach-deep);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-legend {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.cal-legend__seq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+.cal-legend__seq--high {
+  background: #ffd9c4;
+  color: #8c3f1d;
+}
+
+.cal-legend__seq--mid {
+  background: #d9e8fb;
+  color: #2f5c8c;
+}
+
+.cal-legend__seq--low {
+  background: #ece3d9;
+  color: #6d5a4d;
+}
+
+.cal-legend__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-legend__date {
+  color: var(--ink-soft);
+  font-size: 12px;
+  flex: none;
+}
+
+.cal-legend__est {
+  color: var(--ink-soft);
+  font-size: 12px;
+  flex: none;
+  min-width: 52px;
+  text-align: right;
+}
+
+.sched-node__meta .prio {
+  margin-right: 6px;
+  vertical-align: 1px;
+}

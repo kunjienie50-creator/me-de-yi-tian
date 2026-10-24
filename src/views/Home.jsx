@@ -5,8 +5,9 @@ import WeekStrip, { dayTaskList, projectFor } from '../components/WeekStrip.jsx'
 import { Badge, DemoTag, Empty, Field, Pips, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
 import TagPicker from '../components/TagPicker.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
-import { fmtMinutes, fmtRelative, fmtWeekday, toKey, todayKey } from '../lib/dates.js'
+import { fmtClock, fmtMinutes, fmtRelative, fmtWeekday, isoToLocalInput, minutesBetween, toKey, todayKey } from '../lib/dates.js'
 import { SLOGANS } from '../lib/slogans.js'
+import { clearLeakDismiss, dismissLeak, isLeakDismissed, timerLeak } from '../lib/timer.js'
 import { guessTagId, tagMeta } from '../lib/tags.js'
 import { boxItems, pastDueTasks, projectProgress, todayTasks, uid, useStore } from '../store.jsx'
 
@@ -20,13 +21,15 @@ const POKE_LINES = [
 ]
 
 export default function Home({ navigate }) {
-  const { state, dispatch, notify } = useStore()
+  const { state, dispatch, notify, now, today } = useStore()
   const [addOpen, setAddOpen] = useState(false)
   const [peekDay, setPeekDay] = useState(null)
   const [pokeCount, setPokeCount] = useState(0)
   const [line, setLine] = useState(null)
   const [sloganIndex, setSloganIndex] = useState(0)
-  const today = todayKey()
+  const [leakOpen, setLeakOpen] = useState(false)
+  const [leakEnd, setLeakEnd] = useState('')
+  const [leakLit, setLeakLit] = useState(false)
 
   const list = todayTasks(state, today)
   const undone = list.filter((task) => !task.done)
@@ -39,6 +42,9 @@ export default function Home({ navigate }) {
   const dismissedToday =
     state.restart.dismissedAt && toKey(new Date(state.restart.dismissedAt)) === today
   const showRestartNotice = past.length > 0 && !state.restart.appliedAt && !dismissedToday
+  // 漏停提示：开了 5 小时以上，或跨天了；用户点过「先不管」就不再重复
+  const leak = timerLeak(state.timer, now, today)
+  const showLeak = Boolean(leak) && !isLeakDismissed(leak.timerId)
 
   const bubble = useMemo(() => {
     if (line) return line
@@ -60,6 +66,43 @@ export default function Home({ navigate }) {
   function toggleTask(task) {
     dispatch({ type: 'complete_task', id: task.id, done: !task.done })
     if (!task.done) notify(`点亮了「${task.title}」`, 'ok')
+  }
+
+  function saveLeak() {
+    if (!state.timer) return
+    const startedAt = state.timer.startedAt
+    const ended = leakEnd ? new Date(leakEnd) : null
+    if (!ended || Number.isNaN(ended.getTime())) {
+      notify('先选一下实际结束的时间', 'warn')
+      return
+    }
+    if (ended.getTime() <= new Date(startedAt).getTime()) {
+      notify('结束时间要晚于开始时间', 'warn')
+      return
+    }
+    if (ended.getTime() > Date.now() + 60000) {
+      notify('结束时间不能晚于现在', 'warn')
+      return
+    }
+    const minutes = Math.max(1, minutesBetween(startedAt, ended.toISOString()))
+    dispatch({
+      type: 'stop_timer',
+      session: {
+        id: uid('s'),
+        taskId: state.timer.taskId || null,
+        label: state.timer.label || '自由活动',
+        startedAt,
+        endedAt: ended.toISOString(),
+        minutes,
+        lit: leakLit,
+        litTaskId: leakLit ? state.timer.taskId : null,
+      },
+    })
+    clearLeakDismiss()
+    setLeakOpen(false)
+    setLeakEnd('')
+    setLeakLit(false)
+    notify(`按你说的结束时间补录了 ${fmtMinutes(minutes)}`, 'ok')
   }
 
   function startTimer(task) {
@@ -93,6 +136,30 @@ export default function Home({ navigate }) {
           ⚙
         </button>
       </header>
+
+      {showLeak ? (
+        <div className="leak-bar" role="status">
+          <span className="leak-bar__text">
+            <strong>上次那条计时好像忘了停</strong>
+            <span>{leak.reason}（从 {fmtClock(leak.startedAt)} 开始），补一个结束时间？</span>
+          </span>
+          <span className="leak-bar__actions">
+            <button type="button" className="btn btn--sm btn--primary" onClick={() => setLeakOpen(true)}>
+              补录
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={() => {
+                dismissLeak(leak.timerId)
+                notify('这次先不补，提示先收起来了', 'warn')
+              }}
+            >
+              先不管
+            </button>
+          </span>
+        </div>
+      ) : null}
 
       <section className="stage stage--compact">
         <p className="bubble" key={bubble}>
@@ -253,6 +320,41 @@ export default function Home({ navigate }) {
       />
 
       <DayPeekSheet state={state} day={peekDay} onClose={() => setPeekDay(null)} navigate={navigate} />
+
+      <Sheet
+        open={leakOpen}
+        title="补一个结束时间"
+        subtitle="我不猜你几点停的，填你实际放下的那个时间就行。"
+        onClose={() => setLeakOpen(false)}
+        footer={
+          <div className="btn-row">
+            <button type="button" className="btn btn--ghost" onClick={() => setLeakOpen(false)}>
+              取消
+            </button>
+            <button type="button" className="btn btn--primary" disabled={!leakEnd} onClick={saveLeak}>
+              按这个时间补录
+            </button>
+          </div>
+        }
+      >
+        <Field label="实际几点结束的" htmlFor="leak-end" hint={`开始于 ${state.timer ? fmtClock(state.timer.startedAt) : '--'}，只能填开始之后、现在之前的时间。`}>
+          <input
+            id="leak-end"
+            className="input"
+            type="datetime-local"
+            value={leakEnd}
+            min={state.timer ? isoToLocalInput(state.timer.startedAt) : undefined}
+            max={isoToLocalInput(new Date().toISOString())}
+            onChange={(event) => setLeakEnd(event.target.value)}
+          />
+        </Field>
+        <Toggle
+          checked={leakLit}
+          onChange={setLeakLit}
+          label="这次算点亮那条节点"
+          hint="不勾选就只记录时间，不改进度。"
+        />
+      </Sheet>
     </main>
   )
 }
