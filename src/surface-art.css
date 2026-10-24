@@ -1,0 +1,61 @@
+/* Nine-slice artwork keeps the flower and frame proportional on tall and wide panels. */
+:is(.app-shell, .sheet-layer, .fullscreen) :is(
+  .panel, .week-strip, .home-action, .box-card.box-card--art, .box-hero,
+  .project-card, .goal-card, .timer-card, .schedule__day, .export-card,
+  .box-item, .loading-card, .cal, .cal-legend, .notice-card, .sheet
+) {
+  --surface-art-corner: 64px;
+  --surface-art-side: 15px;
+  --surface-art-bottom: 18px;
+  --surface-art-radius: 24px;
+  position: relative;
+  isolation: isolate;
+  background-color: var(--surface);
+  background-image: none;
+}
+
+:is(.app-shell, .sheet-layer, .fullscreen) :is(
+  .panel, .week-strip, .home-action, .box-card.box-card--art, .box-hero,
+  .project-card, .goal-card, .timer-card, .schedule__day, .export-card,
+  .box-item, .loading-card, .cal, .cal-legend, .notice-card, .sheet
+)::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--surface-art-corner) var(--surface-art-side) var(--surface-art-bottom) var(--surface-art-corner);
+  border-image-source: url('./assets/ui/ty.webp');
+  border-image-slice: 300 100 110 300 fill;
+  border-image-repeat: stretch;
+  clip-path: inset(0 round var(--surface-art-radius));
+  pointer-events: none;
+  content: '';
+}
+
+:is(.app-shell, .sheet-layer, .fullscreen) :is(.home-action, .goal-card, .box-item, .loading-card, .cal-legend) {
+  --surface-art-corner: 46px;
+  --surface-art-side: 12px;
+  --surface-art-bottom: 14px;
+  --surface-art-radius: 18px;
+}
+
+.app-shell .week-strip { --surface-art-corner: 56px; }
+.app-shell .box-hero { --surface-art-corner: 76px; --surface-art-radius: 28px; }
+.sheet-layer .sheet { --surface-art-corner: 72px; --surface-art-radius: 28px 28px 0 0; }
+
+@media (max-width: 350px) {
+  .app-shell :is(.panel, .week-strip, .timer-card, .project-card, .schedule__day) {
+    --surface-art-corner: 54px;
+  }
+  .app-shell .home-action { --surface-art-corner: 40px; }
+}
+
+@media (forced-colors: active) {
+  :is(.app-shell, .sheet-layer, .fullscreen) :is(
+    .panel, .week-strip, .home-action, .box-card.box-card--art, .box-hero,
+    .project-card, .goal-card, .timer-card, .schedule__day, .export-card,
+    .box-item, .loading-card, .cal, .cal-legend, .notice-card, .sheet
+  )::after { display: none; }
+}

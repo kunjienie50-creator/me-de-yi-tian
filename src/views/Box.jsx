@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import BoxArt from '../components/BoxArt.jsx'
 import { Empty, Field, SectionTitle } from '../components/ui.jsx'
 import { fmtRelative, todayKey } from '../lib/dates.js'
 import { guessTagId, tagMeta } from '../lib/tags.js'
@@ -11,6 +12,7 @@ import { boxItems, uid, useStore } from '../store.jsx'
 export default function Box({ navigate }) {
   const { state, dispatch, notify } = useStore()
   const [title, setTitle] = useState('')
+  const inputRef = useRef(null)
   const [picking, setPicking] = useState(null) // 哪一条正在挑日期
   const today = todayKey()
   const items = boxItems(state)
@@ -72,12 +74,18 @@ export default function Box({ navigate }) {
         </div>
       </header>
 
-      <p className="hint hint--left">
-        想干的、没想清楚的、暂时做不完的，都先扔进来。事情不放在脑子里，才有地方装别的。
-      </p>
+      <section className="box-hero" aria-labelledby="box-hero-title">
+        <p className="box-hero__eyebrow">想法收纳处 · {items.length} 件</p>
+        <button type="button" className="box-hero__art-button" aria-label="记一件事，放进事件箱" onClick={() => inputRef.current?.focus()}>
+          <BoxArt size="hero" />
+        </button>
+        <h2 className="box-hero__title" id="box-hero-title">先放这里，慢慢来</h2>
+        <p className="box-hero__hint">想做的、没想清楚的，都可以先收好。<br />等想好了，再挑一天取出来。</p>
+      </section>
 
-      <form className="box-add" onSubmit={add}>
+      <form className="box-add box-add--art" onSubmit={add}>
         <input
+          ref={inputRef}
           className="input"
           value={title}
           onChange={(event) => setTitle(event.target.value)}

@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Cat from '../components/Cat.jsx'
+import TaskBurst from '../components/TaskBurst.jsx'
+import BedtimeTaskCover, { TASK_DISSOLVE_MS } from '../components/BedtimeTaskCover.jsx'
 import { Badge, DemoTag, Empty, Field, Pips } from '../components/ui.jsx'
-import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
+import { fmtMinutes, fmtRelative } from '../lib/dates.js'
 import { todayTasks, useStore } from '../store.jsx'
 
 const RESULT_LABEL = {
@@ -17,20 +19,47 @@ const EST_OPTIONS = [
 ]
 
 export default function Bedtime({ navigate }) {
-  const { state, dispatch, notify } = useStore()
-  const today = todayKey()
-  const list = useMemo(() => todayTasks(state, today), [state.tasks, today])
+  const { state, dispatch, notify, today } = useStore()
+  const liveList = useMemo(() => todayTasks(state, today), [state.tasks, today])
 
   const [results, setResults] = useState({})
   const [estAdjust, setEstAdjust] = useState({})
   const [closing, setClosing] = useState(null)
   const [note, setNote] = useState('')
+  const [bursts, setBursts] = useState({})
+  const [frozenTasks, setFrozenTasks] = useState(null)
+  const [dissolvingIds, setDissolvingIds] = useState([])
+  const closingTimer = useRef(null)
+  const list = frozenTasks || liveList
+  const ending = frozenTasks !== null
+
+  useEffect(() => () => window.clearTimeout(closingTimer.current), [])
 
   const answered = list.filter((task) => results[task.id]).length
   const doneCount = list.filter((task) => (results[task.id] || (task.done ? 'done' : null)) === 'done').length
 
+  function burstRows(taskIds) {
+    setBursts((previous) => {
+      const next = { ...previous }
+      taskIds.forEach((id) => { next[id] = (next[id] || 0) + 1 })
+      return next
+    })
+  }
+
   function setResult(taskId, value) {
-    setResults((prev) => ({ ...prev, [taskId]: prev[taskId] === value ? null : value }))
+    const next = results[taskId] === value ? null : value
+    setResults((previous) => ({ ...previous, [taskId]: next }))
+    if (next === 'done') burstRows([taskId])
+    else setBursts((previous) => ({ ...previous, [taskId]: 0 }))
+  }
+
+  function finishWithDissolve(kind, taskIds) {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const forcedColors = window.matchMedia('(forced-colors: active)').matches
+    if (!taskIds.length || reduced || forcedColors) { setClosing(kind); return }
+    setFrozenTasks(list)
+    setDissolvingIds(taskIds)
+    closingTimer.current = window.setTimeout(() => setClosing(kind), TASK_DISSOLVE_MS + 60)
   }
 
   // 做不完、又不想直接删：收进事件箱，任务本体留着，只是离开日程
@@ -45,6 +74,7 @@ export default function Bedtime({ navigate }) {
   }
 
   function save() {
+    if (ending) return
     const items = list.map((task) => {
       const result = results[task.id] || (task.done ? 'done' : 'unknown')
       return { taskId: task.id, result, estAdjust: estAdjust[task.id] || null }
@@ -70,11 +100,12 @@ export default function Bedtime({ navigate }) {
         createdAt: new Date().toISOString(),
       },
     })
-    setClosing('saved')
+    finishWithDissolve('saved', list.filter((task) => ['undone', 'unknown'].includes(results[task.id])).map((task) => task.id))
     notify('今天的结算保存好了', 'ok')
   }
 
   function skip() {
+    if (ending) return
     dispatch({
       type: 'settle',
       record: {
@@ -116,13 +147,13 @@ export default function Bedtime({ navigate }) {
   }
 
   return (
-    <main className="screen screen--night">
+    <main className="screen screen--night" aria-busy={ending}>
       <header className="topbar">
         <div>
           <p className="topbar__date">{fmtRelative(today)} · 睡前</p>
           <h1 className="topbar__title">今天过得怎么样</h1>
         </div>
-        <button type="button" className="icon-btn" onClick={() => navigate('home')} aria-label="关闭">
+        <button type="button" className="icon-btn" onClick={() => navigate('home')} aria-label="关闭" disabled={ending}>
           ✕
         </button>
       </header>
@@ -160,49 +191,54 @@ export default function Bedtime({ navigate }) {
               const value = results[task.id] || (task.done ? 'done' : null)
               const project = task.projectId ? state.projects.find((row) => row.id === task.projectId) : null
               return (
-                <li key={task.id} className="settle-row">
-                  <div className="settle-row__head">
-                    <p className="settle-row__title">{task.title}</p>
-                    <span className="settle-row__meta">
-                      {project ? project.title : task.category}
-                      {task.est_min ? ` · 预估 ${fmtMinutes(task.est_min)}` : ''}
-                    </span>
-                  </div>
-                  <div className="choice-row">
-                    {Object.entries(RESULT_LABEL).map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`choice ${value === key ? 'is-active' : ''}`}
-                        aria-pressed={value === key}
-                        onClick={() => setResult(task.id, key)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {value === 'undone' ? (
-                    <button type="button" className="link-btn link-btn--night" onClick={() => boxIt(task)}>
-                      这件事先收进事件箱，之后再说 →
-                    </button>
-                  ) : null}
-                  {value && value !== 'unknown' && task.est_min ? (
-                    <div className="est-row">
-                      <span className="est-row__label">下次估时？</span>
-                      {EST_OPTIONS.map((option) => (
+                <li key={task.id} className="settle-row" data-result={value || 'unanswered'}>
+                  <TaskBurst sequence={bursts[task.id] || 0} />
+                  <BedtimeTaskCover covered={value === 'undone' || value === 'unknown'} dissolving={dissolvingIds.includes(task.id)}>
+                  <div className="settle-row__content" inert={ending}>
+                    <div className="settle-row__head">
+                      <p className="settle-row__title">{task.title}</p>
+                      <span className="settle-row__meta">
+                        {project ? project.title : task.category}
+                        {task.est_min ? ` · 预估 ${fmtMinutes(task.est_min)}` : ''}
+                      </span>
+                    </div>
+                    <div className="choice-row">
+                      {Object.entries(RESULT_LABEL).map(([key, label]) => (
                         <button
-                          key={option.value}
+                          key={key}
                           type="button"
-                          className={`chip chip--sm ${estAdjust[task.id] === option.value ? 'is-active' : ''}`}
-                          onClick={() =>
-                            setEstAdjust((prev) => ({ ...prev, [task.id]: prev[task.id] === option.value ? null : option.value }))
-                          }
+                          className={`choice ${value === key ? 'is-active' : ''}`}
+                          aria-pressed={value === key}
+                          onClick={() => setResult(task.id, key)}
                         >
-                          {option.label}
+                          {label}
                         </button>
                       ))}
                     </div>
-                  ) : null}
+                    {value === 'undone' ? (
+                      <button type="button" className="link-btn link-btn--night" onClick={() => boxIt(task)}>
+                        这件事先收进事件箱，之后再说 →
+                      </button>
+                    ) : null}
+                    {value && value !== 'unknown' && task.est_min ? (
+                      <div className="est-row">
+                        <span className="est-row__label">下次估时？</span>
+                        {EST_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`chip chip--sm ${estAdjust[task.id] === option.value ? 'is-active' : ''}`}
+                            onClick={() =>
+                              setEstAdjust((prev) => ({ ...prev, [task.id]: prev[task.id] === option.value ? null : option.value }))
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  </BedtimeTaskCover>
                 </li>
               )
             })}
@@ -215,6 +251,7 @@ export default function Bedtime({ navigate }) {
       <Field label="今天想留一句话吗（可选）" htmlFor="bedtime-note" hint="只给你自己看，不会进入 AI 快照。">
         <textarea
           id="bedtime-note"
+          disabled={ending}
           className="input input--area"
           rows={2}
           value={note}
@@ -225,10 +262,10 @@ export default function Bedtime({ navigate }) {
       </Field>
 
       <div className="stack">
-        <button type="button" className="btn btn--primary btn--block" onClick={save}>
+        <button type="button" className="btn btn--primary btn--block" onClick={save} disabled={ending}>
           保存并结束今天
         </button>
-        <button type="button" className="btn btn--ghost btn--block" onClick={skip}>
+        <button type="button" className="btn btn--ghost btn--block" onClick={skip} disabled={ending}>
           今天不结算，直接睡
         </button>
       </div>

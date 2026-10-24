@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import BrandTitle from '../components/BrandTitle.jsx'
 import Cat from '../components/Cat.jsx'
+import BoxArt from '../components/BoxArt.jsx'
 import { useCelebrateTask } from '../components/CatAnimationContext.jsx'
 import TaskRow from '../components/TaskRow.jsx'
 import WeekStrip, { dayTaskList, projectFor } from '../components/WeekStrip.jsx'
@@ -125,12 +127,14 @@ export default function Home({ navigate }) {
 
   return (
     <main className="screen">
-      <header className="topbar">
-        <div>
+      <header className="topbar topbar--home">
+        <div className="home-brand">
           <p className="topbar__date">
             {fmtRelative(today)} · {fmtWeekday(today)}
           </p>
-          <h1 className="topbar__title">me的一天</h1>
+          <h1 className="topbar__title home-brand__title">
+            <BrandTitle />
+          </h1>
           <button type="button" className="slogan" onClick={() => setSloganIndex((index) => index + 1)} title="点一下换一句">
             {slogan}
           </button>
@@ -169,7 +173,7 @@ export default function Home({ navigate }) {
           {bubble}
         </p>
         <button type="button" className="cat-button" onClick={pokeCat} aria-label="摸摸小猫">
-          <Cat mood={mood} className="cat--home" />
+          <Cat mood={mood} className="cat--home" particles />
         </button>
       </section>
 
@@ -192,10 +196,8 @@ export default function Home({ navigate }) {
         </button>
       </div>
 
-      <button type="button" className="box-card" onClick={() => navigate('box')}>
-        <span className="box-card__icon" aria-hidden="true">
-          📦
-        </span>
+      <button type="button" className="box-card box-card--art" onClick={() => navigate('box')}>
+        <BoxArt />
         <span className="box-card__body">
           <span className="box-card__title">事件箱 · {boxed.length} 件</span>
           <span className="box-card__hint">
@@ -203,9 +205,7 @@ export default function Home({ navigate }) {
               ? `${boxed[0].title}${boxed.length > 1 ? ` 等 ${boxed.length} 件` : ''} · 先记着，不占脑子`
               : '想法、暂时做不完的事，都先扔进来'}
           </span>
-        </span>
-        <span className="box-card__cta" aria-hidden="true">
-          打开 →
+          <span className="box-card__cta" aria-hidden="true">打开事件箱 ↗</span>
         </span>
       </button>
 

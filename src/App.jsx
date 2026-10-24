@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import './motion.css'
+import './surface-art.css'
 import { useMotionEffects } from './lib/motion.js'
 import Home from './views/Home.jsx'
 import Goals from './views/Goals.jsx'
@@ -11,6 +12,8 @@ import Restart from './views/Restart.jsx'
 import Review from './views/Review.jsx'
 import Settings from './views/Settings.jsx'
 import CursorTrail from './components/CursorTrail.jsx'
+import NavCatAnimation from './components/NavCatAnimation.jsx'
+import NavPageTransition from './components/NavPageTransition.jsx'
 import { CatAnimationProvider } from './components/CatAnimationContext.jsx'
 import Box from './views/Box.jsx'
 import { fmtStopwatch } from './lib/dates.js'
@@ -35,14 +38,23 @@ function Shell() {
     return { view: allowed.includes(hash) ? hash : 'home', params: {} }
   })
   const scrollRef = useRef(null)
+  const tabbarRef = useRef(null)
+  const [navAnimation, setNavAnimation] = useState({ view: null, sequence: 0 })
 
-  function navigate(view, params = {}) {
+  const [pageTransition, setPageTransition] = useState(null)
+  const transitionSequence = useRef(0)
+
+  const navigate = useCallback((view, params = {}) => {
     setRoute((current) => ({
       view,
       params,
       direction: TABS.findIndex((tab) => tab.view === view) < TABS.findIndex((tab) => tab.view === current.view) ? -1 : 1,
     }))
-  }
+  }, [])
+
+  const finishPageTransition = useCallback((sequence) => {
+    setPageTransition((current) => current?.sequence === sequence ? null : current)
+  }, [])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -68,6 +80,10 @@ function Shell() {
   const activeTab = route.view === 'schedule' ? 'goals' : route.view
   const hideTabs = FULL_VIEWS.includes(route.view)
 
+  useEffect(() => {
+    if (hideTabs) setNavAnimation((previous) => previous.view ? { view: null, sequence: 0 } : previous)
+  }, [hideTabs])
+
   let page = null
   if (route.view === 'home') page = <Home navigate={navigate} />
   else if (route.view === 'goals') page = <Goals navigate={navigate} />
@@ -80,14 +96,15 @@ function Shell() {
   else if (route.view === 'box') page = <Box navigate={navigate} />
 
   return (
+    <>
     <div className={`app-shell ${route.view === 'bedtime' ? 'is-night' : ''}`}>
-      <div className="app-scroll" ref={scrollRef} key={`${route.view}:${route.params.projectId || ''}`} style={{ '--page-direction': route.direction || 1 }}>
+      <div className="app-scroll" inert={Boolean(pageTransition)} ref={scrollRef} key={`${route.view}:${route.params.projectId || ''}`} style={{ '--page-direction': route.direction || 1 }}>
         {page}
         <div className={`app-bottom-space ${hideTabs ? '' : 'has-tabs'} ${state.timer ? 'has-timer' : ''}`} aria-hidden="true" />
       </div>
 
       {state.timer && route.view !== 'timer' ? (
-        <button type="button" className="timer-float" onClick={() => navigate('timer')}>
+        <button type="button" className="timer-float" inert={Boolean(pageTransition)} onClick={() => navigate('timer')}>
           <span className="timer-float__dot" aria-hidden="true" />
           <span className="timer-float__label">{state.timer.label}</span>
           <span className="timer-float__clock">{fmtStopwatch(now - new Date(state.timer.startedAt).getTime())}</span>
@@ -95,7 +112,7 @@ function Shell() {
       ) : null}
 
       {hideTabs ? null : (
-        <nav className="tabbar" aria-label="主导航" style={{ '--active-tab': Math.max(0, TABS.findIndex((tab) => tab.view === activeTab)) }}>
+        <nav ref={tabbarRef} className="tabbar" aria-label="主导航" style={{ '--active-tab': Math.max(0, TABS.findIndex((tab) => tab.view === activeTab)) }}>
           <span className="tabbar__indicator" aria-hidden="true" />
           {TABS.map((tab) => (
             <button
@@ -103,8 +120,16 @@ function Shell() {
               type="button"
               className={`tab ${activeTab === tab.view ? 'is-active' : ''}`}
               aria-current={activeTab === tab.view ? 'page' : undefined}
-              onClick={() => navigate(tab.view)}
+              onClick={(event) => {
+                setNavAnimation((previous) => ({ view: tab.view, sequence: previous.sequence + 1 }))
+                if (tab.view !== route.view) {
+                  setPageTransition({ view: tab.view, label: tab.label, sequence: ++transitionSequence.current, returnFocus: event.currentTarget })
+                } else {
+                  setPageTransition(null)
+                }
+              }}
             >
+              <NavCatAnimation sequence={navAnimation.view === tab.view ? navAnimation.sequence : 0} />
               <span className="tab__icon" aria-hidden="true">
                 {tab.icon}
               </span>
@@ -115,6 +140,8 @@ function Shell() {
         </nav>
       )}
     </div>
+    <NavPageTransition navigationRef={tabbarRef} request={pageTransition} onCovered={navigate} onFinish={finishPageTransition} />
+    </>
   )
 }
 

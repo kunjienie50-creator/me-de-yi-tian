@@ -148,6 +148,25 @@
   letter-spacing: -0.01em;
 }
 
+.home-brand {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-brand__title {
+  margin: 4px 0 8px;
+  line-height: 0;
+}
+
+.home-brand__art {
+  display: block;
+  width: 196px;
+  max-width: 100%;
+  height: auto;
+}
+
+.topbar--home > .icon-btn { flex-shrink: 0; }
+
 .icon-btn {
   display: grid;
   place-items: center;

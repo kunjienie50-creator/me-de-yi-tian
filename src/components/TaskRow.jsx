@@ -4,6 +4,7 @@ import { tagMeta } from '../lib/tags.js'
 import { useStore } from '../store.jsx'
 import { Badge } from './ui.jsx'
 import Cat from './Cat.jsx'
+import TaskNote from './TaskNote.jsx'
 
 /**
  * 一条任务。color 用来区分它属于哪个长期目标：
@@ -46,7 +47,7 @@ export default function TaskRow({
       </button>
 
       <button type="button" className="task-row__main" onClick={() => onOpenTask?.(task)}>
-        <span className="task-row__title">{task.title}</span>
+        <TaskNote title={task.title} />
         <span className="task-row__meta">
           {project ? (
             <>

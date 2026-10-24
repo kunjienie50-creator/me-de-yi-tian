@@ -1,4 +1,6 @@
 .cat {
+  position: relative;
+  isolation: isolate;
   --cat-frame-time: 75ms;
   display: block;
   flex-shrink: 0;
@@ -14,6 +16,7 @@
 .cat--sleepy { --cat-frame-time: 105ms; }
 
 .cat__sprite {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -42,3 +45,41 @@
 .cat--task-reaction { display: none; width: 64px; }
 .cat--task-reaction[data-playing='true'] { display: block; }
 .cat--settings { width: 100px; margin: 12px auto 0; }
+
+/* Sway the body separately from the sprite frames, keeping clicks and the aura stable. */
+.cat__body {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 88%;
+  animation: cat-idle-sway 4s ease-in-out infinite;
+}
+
+@keyframes cat-idle-sway {
+  0%, 100% { transform: translateX(-2px) rotate(-2.2deg); }
+  50% { transform: translateX(2px) rotate(2.2deg); }
+}
+
+.cat[data-playing='true'] .cat__body,
+.cat[data-paused='true'] .cat__body { animation-play-state: paused; }
+.cat--task-reaction .cat__body { animation: none; }
+
+.cat-particles {
+  position: absolute;
+  z-index: 0;
+  top: -56px;
+  left: -32px;
+  width: calc(100% + 64px);
+  height: calc(100% + 68px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat__body { animation: none; transform: none; }
+  .cat-particles { display: none; }
+}
+@media (forced-colors: active) {
+  .cat-particles { display: none; }
+}

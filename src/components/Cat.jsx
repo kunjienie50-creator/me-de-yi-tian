@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import catSprite from '../assets/cat/mmrd-sprite.webp'
 import celebrationSprite from '../assets/cat/mmfg-sprite.webp'
 import { useCatAnimationTrigger } from './CatAnimationContext.jsx'
+import CatParticles from './CatParticles.jsx'
 import './Cat.css'
 
 const FRAMES = Array.from({ length: 51 }, (_, index) => {
@@ -9,7 +10,7 @@ const FRAMES = Array.from({ length: 51 }, (_, index) => {
   return { offset: index / 50, backgroundPosition: `${frame % 5 * 25}% ${Math.floor(frame / 5) * 100 / 9}%`, easing: 'steps(1, end)' }
 })
 
-export default function Cat({ mood = 'idle', className = '', label, completionFor = null }) {
+export default function Cat({ mood = 'idle', className = '', label, completionFor = null, particles = false }) {
   const elementRef = useRef(null)
   const animationRef = useRef(null)
   const [celebrating, setCelebrating] = useState(false)
@@ -80,7 +81,10 @@ export default function Cat({ mood = 'idle', className = '', label, completionFo
 
   return (
     <div ref={elementRef} className={`cat cat--${mood} ${className}`} role="img" aria-label={name} data-playing="false" data-animation={celebrating ? 'celebrate' : 'move'}>
-      <span className="cat__sprite" style={{ backgroundImage: `url("${celebrating ? celebrationSprite : catSprite}")` }} aria-hidden="true" />
+      {particles ? <CatParticles /> : null}
+      <span className="cat__body" aria-hidden="true">
+        <span className="cat__sprite" style={{ backgroundImage: `url("${celebrating ? celebrationSprite : catSprite}")` }} />
+      </span>
     </div>
   )
 }

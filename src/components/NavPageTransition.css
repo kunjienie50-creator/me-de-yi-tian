@@ -1,0 +1,69 @@
+.nav-transition {
+  position: fixed;
+  z-index: 2000;
+  inset: 0 0 var(--nav-transition-bottom, 76px);
+  background: rgba(255, 246, 251, 0.62);
+  backdrop-filter: blur(3px);
+  overscroll-behavior: none;
+}
+
+.nav-transition__skip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--ink, #382a34);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-transition__skip:focus-visible { outline: none; }
+
+.nav-transition__skip:focus-visible .nav-transition__hint {
+  outline: 2px solid var(--peach-deep, #d84d92);
+  outline-offset: 3px;
+}
+
+/* Fit the complete portrait composition to either screen dimension. */
+.nav-transition__frame {
+  display: block;
+  width: min(100vw, calc((100dvh - var(--nav-transition-bottom, 76px)) * 0.5625));
+  aspect-ratio: 9 / 16;
+  pointer-events: none;
+}
+
+.nav-transition__sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: 500% 700%;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.nav-transition__hint {
+  position: absolute;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  padding: 7px 14px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(201, 143, 171, 0.24);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-transition { visibility: hidden; }
+}

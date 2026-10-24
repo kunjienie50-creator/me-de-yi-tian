@@ -1,0 +1,84 @@
+.brand-3d {
+  position: relative;
+  display: block;
+  width: 196px;
+  max-width: 100%;
+  aspect-ratio: 720 / 339;
+  perspective: 680px;
+  isolation: isolate;
+  touch-action: pan-y;
+  user-select: none;
+}
+.brand-3d__float {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: brand-title-float 5s ease-in-out infinite;
+}
+.brand-3d__stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--brand-tilt-x, -4deg)) rotateY(var(--brand-tilt-y, -7deg));
+  transition: transform 500ms var(--motion-spring), scale 380ms var(--motion-spring);
+}
+.brand-3d__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.brand-3d__layer--back {
+  transform: translate3d(1.5px, 4px, -7px);
+  filter: brightness(0.35) saturate(0.5);
+  opacity: 0.45;
+}
+.brand-3d__layer--middle {
+  transform: translate3d(0.75px, 2px, -3px);
+  filter: brightness(0.65);
+  opacity: 0.65;
+}
+.brand-3d .brand-3d__front {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: translateZ(10px);
+  filter: drop-shadow(0 7px 7px #53244826);
+  pointer-events: none;
+}
+.brand-3d__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 25%, #ffffffb3 45%, transparent 62%);
+  background-size: 240% 100%;
+  background-position: var(--brand-light-x, 45%) 50%;
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  transform: translateZ(11px);
+  mix-blend-mode: screen;
+  opacity: 0.12;
+  transition: opacity 250ms ease, background-position 350ms ease;
+  pointer-events: none;
+}
+.brand-3d[data-pressed='true'] .brand-3d__stage { scale: 0.95; }
+.brand-3d[data-paused='true'] .brand-3d__float { animation-play-state: paused; }
+@keyframes brand-title-float {
+  0%, 100% { transform: translateY(1px) rotateZ(-0.5deg); }
+  50% { transform: translateY(-3px) rotateZ(0.5deg); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .brand-3d:hover .brand-3d__float { animation-play-state: paused; }
+  .brand-3d:hover .brand-3d__shine { opacity: 0.24; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-3d__float { animation: none; }
+  .brand-3d__stage { transform: none; scale: 1 !important; transition: none; }
+  .brand-3d__layer, .brand-3d__shine { display: none; }
+}

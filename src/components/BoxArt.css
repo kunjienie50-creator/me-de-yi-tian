@@ -1,0 +1,225 @@
+.box-art {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  isolation: isolate;
+}
+.box-art__halo {
+  position: absolute;
+  inset: 8% -4% 0;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #c6cdbd45, transparent 68%);
+}
+.box-art__float {
+  position: absolute;
+  inset: 0 0 11px;
+  display: block;
+  animation: box-art-float 5s ease-in-out infinite;
+}
+.box-art__tilt {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: perspective(700px) translateX(var(--box-shift-x, 0px)) rotateX(var(--box-tilt-x, 0deg)) rotateY(var(--box-tilt-y, 0deg));
+  transform-origin: 50% 72%;
+  transition: transform 480ms var(--motion-spring), scale 350ms var(--motion-spring), filter 300ms ease;
+}
+.box-art__tilt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 9px #35433820);
+  user-select: none;
+}
+.box-art__shadow {
+  position: absolute;
+  bottom: 0;
+  left: 18%;
+  width: 64%;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #52604b30, transparent 70%);
+  animation: box-art-shadow 5s ease-in-out infinite;
+}
+.box-art__mote {
+  position: absolute;
+  width: calc(var(--particle-size) * var(--box-particle-scale, 1));
+  height: calc(var(--particle-size) * var(--box-particle-scale, 1));
+  border: 1px solid #9da98b;
+  border-radius: 1px;
+  background: #b6c0a5;
+  opacity: 0.5;
+  box-shadow: 0 2px 7px #66715514;
+  pointer-events: none;
+  animation: box-art-mote 6s ease-in-out infinite;
+}
+.box-art__mote--outline { background: #ffffff30; border-color: #b8bca4; }
+.box-art__mote--pink { background: #e8bfd1; border-color: #dbafc2; }
+.box-art--hero { --box-particle-scale: 1.3; }
+.box-art[data-pressed='true'] .box-art__tilt {
+  scale: 0.94;
+}
+.box-art[data-paused='true'] :is(.box-art__float, .box-art__shadow, .box-art__mote) {
+  animation-play-state: paused;
+}
+@keyframes box-art-float { 0%, 100% {
+  transform: translateY(2px) rotate(-1.5deg);
+} 50% {
+  transform: translateY(-7px) rotate(1.5deg);
+} }
+@keyframes box-art-shadow { 0%, 100% {
+  scale: 1;
+  opacity: 0.8;
+} 50% {
+  scale: 0.78;
+  opacity: 0.45;
+} }
+@keyframes box-art-mote {
+  0% { transform: translate3d(0, 6px, 0) rotate(var(--particle-turn)); opacity: 0; }
+  18% { opacity: 0.5; }
+  65% { opacity: 0.75; }
+  100% { transform: translate3d(var(--particle-drift), calc(-1 * var(--particle-lift)), 0) rotate(calc(var(--particle-turn) + 80deg)); opacity: 0; }
+}
+
+/* A larger piece of artwork replaces the small emoji in the home entry. */
+.box-card.box-card--art {
+  display: grid;
+  grid-template-columns: minmax(106px, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+  min-height: 180px;
+  padding: 14px 18px 10px 10px;
+  overflow: visible;
+}
+.box-card--art .box-art {
+  width: 100%;
+  max-width: 140px;
+  justify-self: center;
+}
+.box-card--art .box-card__body {
+  gap: 9px;
+}
+.box-card--art .box-card__title {
+  font-size: 17px;
+  line-height: 1.3;
+}
+.box-card--art .box-card__hint {
+  -webkit-line-clamp: 3;
+  line-height: 1.6;
+}
+.box-card--art .box-card__cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border: 1px solid #dfccd7;
+  border-radius: 999px;
+  color: var(--peach-deep);
+  background: #ffffffa6;
+  font-size: 11px;
+}
+
+/* Give the artwork a central stage inside the event box. */
+.box-hero {
+  position: relative;
+  margin: 0 0 18px;
+  padding: 20px 22px 22px;
+  overflow: hidden;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: radial-gradient(ellipse at 50% 32%, #e8ecdf9c, transparent 65%), var(--accent-panel-gradient);
+}
+.box-hero__eyebrow {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid #aab69a55;
+  border-radius: 999px;
+  color: #5b6856;
+  background: #ffffffb3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.box-hero__art-button {
+  display: block;
+  width: min(192px, 74%);
+  margin: 12px auto 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 24px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.box-hero__art-button .box-art {
+  aspect-ratio: 3 / 4;
+}
+.box-hero__title {
+  margin: 6px 0 7px;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+}
+.box-hero__hint {
+  max-width: 270px;
+  margin: 0 auto;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.box-hero__art-button:focus-visible {
+  outline: 2px solid var(--peach-deep);
+  outline-offset: 5px;
+}
+.box-add.box-add--art {
+  margin-bottom: 18px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .box-art:hover .box-art__float {
+  animation-play-state: paused;
+}
+  .box-art:hover .box-art__tilt {
+  scale: 1.045;
+  filter: drop-shadow(0 4px 5px #60714c1a);
+}
+  .box-art[data-pressed='true']:hover .box-art__tilt {
+  scale: 0.94;
+}
+}
+@media (max-width: 350px) {
+  .box-card.box-card--art {
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 8px;
+  padding-right: 12px;
+  min-height: 165px;
+}
+  .box-card--art .box-card__title {
+  font-size: 15px;
+}
+  .box-card--art .box-card__hint {
+  font-size: 11px;
+}
+  .box-hero {
+  padding: 18px 16px 20px;
+}
+  .box-hero__art-button {
+  width: 168px;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+  .box-art__float, .box-art__shadow, .box-art__mote {
+  animation: none;
+}
+  .box-art__tilt, .box-art:hover .box-art__tilt {
+  transform: none;
+  scale: 1;
+  transition: none;
+}
+}

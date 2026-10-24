@@ -190,6 +190,8 @@ export function useMotionEffects() {
     function onPointerDown(event) {
       if (reduced.matches || !event.isPrimary || event.button !== 0) return
       const element = feedbackTarget(event.target)
+      // The cat cover follows touch dragging directly; a press transform fights that gesture.
+      if (event.pointerType === 'touch' && element?.matches('.settle-cat')) return
       if (element) startPress(element, { x: event.clientX, y: event.clientY }, { pointerId: event.pointerId })
     }
 
