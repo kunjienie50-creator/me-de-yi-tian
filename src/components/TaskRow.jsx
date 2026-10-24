@@ -1,5 +1,6 @@
 import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import { Badge } from './ui.jsx'
+import Cat from './Cat.jsx'
 
 export default function TaskRow({
   task,
@@ -46,6 +47,9 @@ export default function TaskRow({
         ) : null}
       </button>
 
+      <span className="task-row__celebration" aria-hidden="true">
+        <Cat mood="happy" className="cat--task-reaction" completionFor={task.id} />
+      </span>
       <div className="task-row__actions">
         {onToggleLock && task.kind === 'node' ? (
           <button

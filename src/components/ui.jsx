@@ -1,5 +1,19 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
+
+function usePresence(open) {
+  const [present, setPresent] = useState(open)
+  useEffect(() => {
+    if (open) {
+      setPresent(true)
+      return
+    }
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 190
+    const timeout = window.setTimeout(() => setPresent(false), duration)
+    return () => window.clearTimeout(timeout)
+  }, [open])
+  return open || present
+}
 
 export function Badge({ tone = 'soft', children }) {
   return <span className={`badge badge--${tone}`}>{children}</span>
@@ -29,8 +43,9 @@ export function Pips({ done = 0, total = 0, animate = false }) {
 }
 
 export function Sheet({ open, title, subtitle, onClose, children, footer, wide = false }) {
+  const present = usePresence(open)
   useEffect(() => {
-    if (!open) return
+    if (!present) return
     const onKey = (event) => {
       if (event.key === 'Escape') onClose?.()
     }
@@ -40,11 +55,11 @@ export function Sheet({ open, title, subtitle, onClose, children, footer, wide =
       document.removeEventListener('keydown', onKey)
       document.body.classList.remove('no-scroll')
     }
-  }, [open, onClose])
+  }, [present, onClose])
 
-  if (!open) return null
+  if (!present) return null
   return createPortal(
-    <div className="sheet-layer" role="dialog" aria-modal="true" aria-label={title || '弹层'}>
+    <div className="sheet-layer" data-closing={!open} role="dialog" aria-modal="true" aria-label={title || '弹层'}>
       <button type="button" className="sheet-layer__backdrop" aria-label="关闭" onClick={onClose} />
       <div className={`sheet ${wide ? 'sheet--wide' : ''}`}>
         <div className="sheet__grip" aria-hidden="true" />
@@ -68,18 +83,19 @@ export function Sheet({ open, title, subtitle, onClose, children, footer, wide =
 }
 
 export function FullScreen({ open, title, subtitle, onClose, children, footer, tone = 'plain' }) {
+  const present = usePresence(open)
   useEffect(() => {
-    if (!open) return
+    if (!present) return
     const onKey = (event) => {
       if (event.key === 'Escape') onClose?.()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [present, onClose])
 
-  if (!open) return null
+  if (!present) return null
   return createPortal(
-    <div className={`fullscreen fullscreen--${tone}`} role="dialog" aria-modal="true" aria-label={title}>
+    <div className={`fullscreen fullscreen--${tone}`} data-closing={!open} role="dialog" aria-modal="true" aria-label={title}>
       <header className="fullscreen__head">
         <button type="button" className="icon-btn" onClick={onClose} aria-label="返回">
           ←
@@ -179,5 +195,29 @@ export function SectionTitle({ children, action }) {
       <h3>{children}</h3>
       {action}
     </div>
+  )
+}
+
+export function CollapsiblePanel({ title, eyebrow, action, children, soft = false }) {
+  const [expanded, setExpanded] = useState(true)
+  const contentId = useId()
+  return (
+    <section className={`panel collapse-panel ${soft ? 'panel--soft' : ''}`}>
+      <div className="collapse-panel__head">
+        <h2 className="collapse-panel__heading">
+          <button type="button" className="collapse-panel__trigger" aria-expanded={expanded} aria-controls={contentId} onClick={() => setExpanded((value) => !value)}>
+            <span>
+              {eyebrow ? <span className="panel__eyebrow collapse-panel__eyebrow">{eyebrow}</span> : null}
+              <span className={eyebrow ? 'panel__title' : 'section-title__h'}>{title}</span>
+            </span>
+            <span className="collapse-panel__chevron" aria-hidden="true">⌄</span>
+          </button>
+        </h2>
+        {action}
+      </div>
+      <div id={contentId} className={`collapse-panel__content ${expanded ? 'is-expanded' : ''}`} inert={!expanded}>
+        <div className="collapse-panel__body">{children}</div>
+      </div>
+    </section>
   )
 }

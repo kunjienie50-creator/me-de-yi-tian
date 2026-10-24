@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { clearState, loadState, saveState } from './lib/storage.js'
 import { SCHEMA_VERSION, createSeedState } from './lib/seed.js'
 import { diffDays, todayKey } from './lib/dates.js'
+import { applyTheme } from './lib/theme.js'
 
 export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -23,7 +24,9 @@ function initState() {
   const saved = loadState()
   if (!saved) return createSeedState()
   if (saved.version !== SCHEMA_VERSION) return createSeedState()
-  return { ...defaults(), ...saved, settings: { ...defaults().settings, ...saved.settings }, restart: { ...defaults().restart, ...saved.restart } }
+  const settings = { ...defaults().settings, ...saved.settings }
+  delete settings.appearance
+  return { ...defaults(), ...saved, settings, restart: { ...defaults().restart, ...saved.restart } }
 }
 
 function pushUndo(state, label, changes) {
@@ -179,6 +182,10 @@ export function StoreProvider({ children }) {
   const [toast, setToast] = useState(null)
   const timerRef = useRef(null)
   const [, forceTick] = useState(0)
+
+  useLayoutEffect(() => {
+    applyTheme()
+  }, [])
 
   useEffect(() => {
     const result = saveState(state)

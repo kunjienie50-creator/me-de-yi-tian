@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import Cat from '../components/Cat.jsx'
+import { useCelebrateTask } from '../components/CatAnimationContext.jsx'
 import TaskRow from '../components/TaskRow.jsx'
-import { Badge, DemoTag, Empty, Field, Pips, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
+import { Badge, CollapsiblePanel, DemoTag, Empty, Field, Pips, Sheet, Toggle } from '../components/ui.jsx'
 import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import {
   pastDueTasks,
@@ -15,6 +16,7 @@ import {
 export default function Home({ navigate }) {
   const { state, dispatch, notify } = useStore()
   const [addOpen, setAddOpen] = useState(false)
+  const celebrateTask = useCelebrateTask()
   const today = todayKey()
 
   const list = todayTasks(state, today)
@@ -35,7 +37,10 @@ export default function Home({ navigate }) {
 
   function toggleTask(task) {
     dispatch({ type: 'complete_task', id: task.id, done: !task.done })
-    if (!task.done) notify(`点亮了「${task.title}」`, 'ok')
+    if (!task.done) {
+      celebrateTask(task.id)
+      notify(`点亮了「${task.title}」`, 'ok')
+    }
   }
 
   function startTimer(task) {
@@ -72,19 +77,15 @@ export default function Home({ navigate }) {
         </button>
       ) : null}
 
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <p className="panel__eyebrow">今天</p>
-            <h2 className="panel__title">
-              点亮 {list.filter((t) => t.done).length} / {list.length || 0} 件事
-            </h2>
-          </div>
+      <CollapsiblePanel
+        eyebrow="今天"
+        title={`点亮 ${list.filter((t) => t.done).length} / ${list.length} 件事`}
+        action={
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setAddOpen(true)}>
             + 加一条
           </button>
-        </div>
-
+        }
+      >
         {list.length ? (
           <ul className="task-list">
             {list.map((task) => (
@@ -111,13 +112,10 @@ export default function Home({ navigate }) {
             }
           />
         )}
-      </section>
+      </CollapsiblePanel>
 
       {upcoming.length ? (
-        <section className="panel panel--soft">
-          <SectionTitle action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>管理目标</button>}>
-            接下来
-          </SectionTitle>
+        <CollapsiblePanel soft title="接下来" action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>管理目标</button>}>
           <ul className="mini-list">
             {upcoming.map((task) => (
               <li key={task.id}>
@@ -127,13 +125,10 @@ export default function Home({ navigate }) {
               </li>
             ))}
           </ul>
-        </section>
+        </CollapsiblePanel>
       ) : null}
 
-      <section className="panel panel--soft">
-        <SectionTitle action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>全部目标</button>}>
-          长期目标
-        </SectionTitle>
+      <CollapsiblePanel soft title="长期目标" action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>全部目标</button>}>
         {activeProjects.length ? (
           <ul className="goal-strip">
             {activeProjects.map((project) => {
@@ -155,7 +150,7 @@ export default function Home({ navigate }) {
           <Empty title="还没有长期目标" hint="把「想做成的事」拆成能打卡的节点。"
             action={<button type="button" className="btn btn--primary" onClick={() => navigate('goals')}>新建目标</button>} />
         )}
-      </section>
+      </CollapsiblePanel>
 
       <section className="quick-grid">
         <button type="button" className="quick" onClick={() => navigate('timer')}>

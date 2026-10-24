@@ -65,6 +65,7 @@ export default function Review({ navigate }) {
             key={day}
             type="button"
             className={`day-chip ${date === day ? 'is-active' : ''}`}
+            aria-pressed={date === day}
             onClick={() => setDate(day)}
           >
             <span className="day-chip__main">{fmtRelative(day, today)}</span>
@@ -77,7 +78,7 @@ export default function Review({ navigate }) {
         <Empty title="这一天没有留下记录" hint="没有记录不等于没做事；回顾只呈现你写过的东西。" />
       ) : (
         <>
-          <section className="panel review-card">
+          <section className="panel review-card" key={date}>
             <p className="panel__eyebrow">✦ {fmtRelative(date, today)}</p>
             <h2 className="panel__title">{data.doneTasks.length ? `点亮了 ${data.doneTasks.length} 件事` : '这一天慢慢过去了'}</h2>
             {data.total ? <Pips done={data.doneTasks.length} total={data.total} /> : null}

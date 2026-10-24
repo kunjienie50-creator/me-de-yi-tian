@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import './motion.css'
+import { useMotionEffects } from './lib/motion.js'
 import Home from './views/Home.jsx'
 import Goals from './views/Goals.jsx'
 import Schedule from './views/Schedule.jsx'
@@ -8,6 +10,8 @@ import Bedtime from './views/Bedtime.jsx'
 import Restart from './views/Restart.jsx'
 import Review from './views/Review.jsx'
 import Settings from './views/Settings.jsx'
+import CursorTrail from './components/CursorTrail.jsx'
+import { CatAnimationProvider } from './components/CatAnimationContext.jsx'
 import { fmtStopwatch } from './lib/dates.js'
 import { StoreProvider, useStore } from './store.jsx'
 
@@ -21,12 +25,17 @@ const TABS = [
 const FULL_VIEWS = ['bedtime', 'restart', 'settings']
 
 function Shell() {
+  useMotionEffects()
   const { state } = useStore()
   const [route, setRoute] = useState({ view: 'home', params: {} })
   const scrollRef = useRef(null)
 
   function navigate(view, params = {}) {
-    setRoute({ view, params })
+    setRoute((current) => ({
+      view,
+      params,
+      direction: TABS.findIndex((tab) => tab.view === view) < TABS.findIndex((tab) => tab.view === current.view) ? -1 : 1,
+    }))
   }
 
   useEffect(() => {
@@ -48,7 +57,7 @@ function Shell() {
 
   return (
     <div className={`app-shell ${route.view === 'bedtime' ? 'is-night' : ''}`}>
-      <div className="app-scroll" ref={scrollRef} key={route.view}>
+      <div className="app-scroll" ref={scrollRef} key={`${route.view}:${route.params.projectId || ''}`} style={{ '--page-direction': route.direction || 1 }}>
         {page}
         <div className={`app-bottom-space ${hideTabs ? '' : 'has-tabs'}`} aria-hidden="true" />
       </div>
@@ -62,7 +71,8 @@ function Shell() {
       ) : null}
 
       {hideTabs ? null : (
-        <nav className="tabbar" aria-label="主导航">
+        <nav className="tabbar" aria-label="主导航" style={{ '--active-tab': Math.max(0, TABS.findIndex((tab) => tab.view === activeTab)) }}>
+          <span className="tabbar__indicator" aria-hidden="true" />
           {TABS.map((tab) => (
             <button
               key={tab.view}
@@ -87,7 +97,10 @@ function Shell() {
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <CatAnimationProvider>
+        <Shell />
+      </CatAnimationProvider>
+      <CursorTrail />
     </StoreProvider>
   )
 }

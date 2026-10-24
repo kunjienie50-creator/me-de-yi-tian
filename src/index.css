@@ -1,16 +1,38 @@
+@font-face {
+  font-family: 'WDXL Lubrifont SC';
+  src: url('./assets/fonts/WDXLLubrifontSC-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
-  --cream: #fff7ee;
-  --cream-deep: #ffe9d6;
-  --ink: #4a362b;
-  --ink-soft: #9c8375;
-  --peach: #ff9a76;
-  --peach-deep: #ef7546;
-  --card-shadow: 0 20px 40px -26px rgba(122, 74, 44, 0.75);
+  --cream: #fff8fc;
+  --cream-deep: #f8f1f5;
+  --ink: #352330;
+  --ink-soft: #6e616a;
+  --peach: #ff9bc9;
+  --peach-deep: #b81763;
+  --surface: #ffffff;
+  --surface-soft: #fffbfd;
+  --surface-raised: #fdfcfd;
+  --surface-input: #fffcfe;
+  --on-accent: #260d1d;
+  --accent-gradient: linear-gradient(135deg, #ffb1d5, #ff7cb7);
+  --night-gradient: linear-gradient(180deg, #fff8fc, #fff0f7);
+  --card-shadow: 0 18px 40px -28px rgba(84, 25, 60, 0.16);
+  --accent-panel-gradient: linear-gradient(135deg, #ffebf4, #fff7fb);
+  --accent-hover: #ffe9f3;
+  --neutral-fill: rgba(53, 35, 48, 0.055);
+  --neutral-track: rgba(53, 35, 48, 0.16);
+  --neutral-dot: rgba(53, 35, 48, 0.13);
+  --nav-background: rgba(255, 248, 252, 0.95);
+  --trail-ink: #4b4b4b;
 
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+  font-family: 'WDXL Lubrifont SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
-  font-synthesis: none;
+  font-synthesis: weight;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -28,14 +50,16 @@ body {
   min-height: 100dvh;
   color: var(--ink);
   background:
-    radial-gradient(circle at 12% 8%, #ffe3c9 0%, transparent 42%),
-    radial-gradient(circle at 88% 4%, #d8f0e6 0%, transparent 38%),
+    radial-gradient(circle at 12% 8%, rgba(255, 124, 183, 0.1) 0%, transparent 42%),
+    radial-gradient(circle at 88% 4%, rgba(182, 82, 139, 0.08) 0%, transparent 38%),
     var(--cream);
   -webkit-font-smoothing: antialiased;
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
   color: inherit;
 }
