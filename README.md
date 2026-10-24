@@ -44,6 +44,7 @@ esbuild 的平台二进制会随依赖一起安装，`--ignore-scripts` 不影�
 index.html             页面骨架、移动端 viewport、emoji favicon
 vite.config.js         Vite 配置（host: true 便于手机访问）
 src/main.jsx           React 挂载入口
+server/ai.js           本地 AI 代理：把三处调用转给 DeepSeek（只用本机 .env 的密钥）
 src/App.jsx            应用外壳：底部导航、全屏视图、计时浮条
 src/App.css            全部样式（含睡前深色主题、弹层、动画）
 src/index.css          全局变量、reset、页面背景
@@ -59,6 +60,7 @@ src/lib/
   colors.js            目标配色（按项目顺序取色，任务行/周历/排期共用）
   tags.js              分类标签：默认六类 + 关键词猜分类 + 自定义分类
   slogans.js           首页广告语（按日期固定一句，点一下换下一句）
+  ai.js                前端调用本地代理：/api/ai/decompose · restart · note（失败自动降级）
   seed.js              演示种子数据（今天/昨天/明天都是相对日期）
 src/components/
   Cat.jsx              小猫：三套配色皮肤 + 可换成自己画的图片
@@ -117,6 +119,28 @@ src/views/
 - `src/lib/timer.js` 的判定：一条计时已经跑了 5 小时以上，**或者**开始时间不是今天（跨日），就算「可能忘了停」。
 - 首页顶部会出现一条提示条「上次那条计时好像忘了停」+ 「补录 / 先不管」。点「先不管」会把这条计时的 id 记进 localStorage（`me-de-yi-tian.leak-dismissed.v1`），刷新也不再弹；真的停了计时后自动清掉。
 - 补录时只问一件事：**「实际几点结束的」**（`datetime-local`，只能填开始之后、现在之前）。时长按你填的时间算，不会用「当前时间」倒推；默认只记录时间不点亮节点，勾选「这次算点亮那条节点」才会改进度。
+
+## 接大模型（DeepSeek）
+
+模型只介入三处，都是「生成建议 → 本地校验 → 你确认」：
+
+| 场景 | 前端调用 | 代理 | 离线兜底 |
+| --- | --- | --- | --- |
+| 一句话拆成清单 | `aiDecompose()`（`src/lib/ai.js`） | `/api/ai/decompose` | `decompose()` 样例库 |
+| 昨天没做完的重排草案 | `aiRestart()` | `/api/ai/restart` | `buildRestartDraft()` 规则表 |
+| 任务备注补一句 | `aiNote()` | `/api/ai/note` | 不补，提示你手写 |
+
+怎么开：
+
+1. 复制 `.env.example` 为 `.env`，填 `DEEPSEEK_API_KEY=sk-...`（`.env` 已被 git 忽略）。
+2. `npm run dev` 重启（配置只在启动时读一次）。设置页 →「模型」面板会显示「已连接 · deepseek-chat」。
+3. 没填 key、代理 404、超时、模型返回非法 JSON —— 都会自动降级成离线规则，并在界面上标出「离线规则生成」和原因。
+
+为什么要有这个本地代理：密钥只留在 Node 进程里（`server/ai.js`），永远不下发到浏览器；线上静态版没有这个代理，所以线上永远走离线规则，不会暴露任何 key。
+
+模型输出不会被直接写进你的数据：拆解的清单会重排 `seq`、补全分类和估时；重排草案会丢弃越界项、把漏掉的节点补成「需要你决定」；所有改动仍然要你勾选、点确认。
+
+想验证界面路径但暂时没有 key：`.env` 里加 `DEEPSEEK_MOCK=1`，代理会返回固定样例。
 
 ## 地址栏直达
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import TagPicker from '../components/TagPicker.jsx'
 import { Badge, DemoTag, Empty, Field, FullScreen, Pips, Sheet } from '../components/ui.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
+import { aiDecompose } from '../lib/ai.js'
 import { GRANULARITY_LABEL, PRIORITY_META, decompose, fakeLatency, validateDraft } from '../lib/decompose.js'
 import { addDays, dayRange, diffDays, fmtMD, fmtMinutes, fmtRelative, fmtWeekday, fromKey } from '../lib/dates.js'
 import { detectConflicts, orderConflicts, planEven, sortBySeq } from '../lib/schedule.js'
@@ -163,9 +164,45 @@ function GoalWizard({ seed, onClose, onCreate }) {
   const [dragging, setDragging] = useState(null)
   const [selected, setSelected] = useState(null)
   const [plans, setPlans] = useState(0) // 改动次数，用来给「重排」后的说明
+  const [source, setSource] = useState('rule') // 'model' | 'rule'
+  const [aiNote, setAiNote] = useState('') // 模型失败时的原因，展示在清单上方
 
   const open = Boolean(seed)
   const raw = seed ? seed.raw : ''
+
+  // 先问本地模型（/api/ai/decompose）；没 key、没代理或超时就退回离线规则，界面会标出来
+  async function requestDraft(granularity) {
+    const ai = await aiDecompose(raw, granularity)
+    if (ai.ok) {
+      return { source: 'model', error: '', checked: validateDraft({ kind: 'long_term', ...ai.draft }) }
+    }
+    await fakeLatency(560)
+    return { source: 'rule', error: ai.error || '', checked: validateDraft(decompose(raw, granularity)) }
+  }
+
+  function applyDraft(result) {
+    const checked = result.checked
+    setSource(result.source)
+    setAiNote(result.error)
+    if (checked.draft && checked.draft.kind === 'chat') {
+      setIssues([checked.draft.short_reply || '再多说一点'])
+      return
+    }
+    setTitle(checked.draft.title || raw)
+    setCategory(checked.draft.category || '日常')
+    setTag(guessTagId(`${raw} ${checked.draft.title || ''}`))
+    setNodes(
+      (checked.draft.nodes || []).map((node) => ({
+        key: `n${node.seq}_${Math.random().toString(36).slice(2, 5)}`,
+        seq: node.seq,
+        priority: node.priority || 'mid',
+        label: node.label,
+        category: node.category,
+        est_min: node.est_min,
+      })),
+    )
+    setIssues(checked.issues || [])
+  }
 
   // 打开时先「拆解」，直接落到确认清单
   useEffect(() => {
@@ -177,28 +214,9 @@ function GoalWizard({ seed, onClose, onCreate }) {
     setGranularity('default')
     setDdl(addDays(today, 6))
     setPlan(new Map())
-    fakeLatency(680).then(() => {
+    requestDraft('default').then((result) => {
       if (!alive) return
-      const checked = validateDraft(decompose(raw, 'default'))
-      if (checked.draft && checked.draft.kind === 'chat') {
-        setIssues([checked.draft.short_reply || '再多说一点'])
-        setLoading(false)
-        return
-      }
-      setTitle(checked.draft.title || raw)
-      setCategory(checked.draft.category || '日常')
-      setTag(guessTagId(`${raw} ${checked.draft.title || ''}`))
-      setNodes(
-        (checked.draft.nodes || []).map((node) => ({
-          key: `n${node.seq}_${Math.random().toString(36).slice(2, 5)}`,
-          seq: node.seq,
-          priority: node.priority || 'mid',
-          label: node.label,
-          category: node.category,
-          est_min: node.est_min,
-        })),
-      )
-      setIssues(checked.issues || [])
+      applyDraft(result)
       setLoading(false)
     })
     return () => {
@@ -211,19 +229,8 @@ function GoalWizard({ seed, onClose, onCreate }) {
     if (!raw.trim()) return
     setLoading(true)
     setIssues([])
-    await fakeLatency(560)
-    const checked = validateDraft(decompose(raw, nextGranularity))
-    setNodes(
-      (checked.draft.nodes || []).map((node) => ({
-        key: `n${node.seq}_${Math.random().toString(36).slice(2, 5)}`,
-        seq: node.seq,
-        priority: node.priority || 'mid',
-        label: node.label,
-        category: node.category,
-        est_min: node.est_min,
-      })),
-    )
-    setIssues(checked.issues || [])
+    const result = await requestDraft(nextGranularity)
+    applyDraft(result)
     setGranularity(nextGranularity)
     setLoading(false)
   }
@@ -364,6 +371,15 @@ function GoalWizard({ seed, onClose, onCreate }) {
                 }}
                 label="这件事属于哪一类（AI 先猜了一个，节点会一起带上这个分类）"
               />
+
+              <p className="ai-hint">
+                <span className={`ai-badge ${source === 'model' ? 'is-model' : ''}`}>
+                  {source === 'model' ? '本地模型生成' : '离线规则生成'}
+                </span>
+                <span className="ai-hint__text">
+                  {source === 'model' ? '清单来自 DeepSeek，序号和优先级仍会被本地规则再校验一遍。' : `没连上模型${aiNote ? `（${aiNote}）` : ''}，这次用的是本地规则。`}
+                </span>
+              </p>
 
               <div className="draft-head">
                 <span className="draft-head__label">子任务清单</span>

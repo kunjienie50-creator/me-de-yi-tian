@@ -4,6 +4,7 @@ import TaskRow from '../components/TaskRow.jsx'
 import WeekStrip, { dayTaskList, projectFor } from '../components/WeekStrip.jsx'
 import { Badge, DemoTag, Empty, Field, Pips, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
 import TagPicker from '../components/TagPicker.jsx'
+import { aiNote } from '../lib/ai.js'
 import { colorVars, projectColorOf } from '../lib/colors.js'
 import { fmtClock, fmtMinutes, fmtRelative, fmtWeekday, isoToLocalInput, minutesBetween, toKey, todayKey } from '../lib/dates.js'
 import { SLOGANS } from '../lib/slogans.js'
@@ -425,6 +426,8 @@ function AddTaskSheet({ open, onClose, onSave }) {
   const [noteForAI, setNoteForAI] = useState(false)
   const [tag, setTag] = useState('life')
   const [tagTouched, setTagTouched] = useState(false)
+  const [noteBusy, setNoteBusy] = useState(false)
+  const [noteFromAI, setNoteFromAI] = useState(false)
 
   // 用户还没自己选分类时，跟着标题自动猜一个（AI 识别的演示版）
   const guessed = guessTagId(title)
@@ -439,6 +442,22 @@ function AddTaskSheet({ open, onClose, onSave }) {
     return id
   }
 
+  // 让本地模型把标题补成一句具体提醒；没连上就提示用户自己写
+  async function askModelForNote() {
+    const text = title.trim()
+    if (!text || noteBusy) return
+    setNoteBusy(true)
+    const res = await aiNote(text, tagMeta(state, activeTag)?.label || '')
+    setNoteBusy(false)
+    if (res.ok && res.note) {
+      setNote(res.note.slice(0, 80))
+      setNoteFromAI(true)
+      notify('模型补了一句，你看看要不要改', 'ok')
+      return
+    }
+    notify('没连上模型，先自己写一句吧', 'warn')
+  }
+
   function reset() {
     setTitle('')
     setDate(today)
@@ -447,6 +466,7 @@ function AddTaskSheet({ open, onClose, onSave }) {
     setNoteForAI(false)
     setTag('life')
     setTagTouched(false)
+    setNoteFromAI(false)
   }
 
   function submit() {
@@ -529,11 +549,20 @@ function AddTaskSheet({ open, onClose, onSave }) {
           id="add-note"
           className="input input--area"
           value={note}
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event) => {
+            setNote(event.target.value)
+            setNoteFromAI(false)
+          }}
           rows={2}
           maxLength={80}
           placeholder="给自己的一句提醒"
         />
+        <div className="note-row">
+          <button type="button" className="link-btn" onClick={askModelForNote} disabled={!title.trim() || noteBusy}>
+            {noteBusy ? '模型想一句…' : '帮我补一句'}
+          </button>
+          {noteFromAI ? <span className="ai-hint__text">这句是模型补的，可以改。</span> : null}
+        </div>
       </Field>
       <Toggle
         checked={noteForAI}

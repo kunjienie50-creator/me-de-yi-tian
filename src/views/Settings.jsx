@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, DemoTag, Field, SectionTitle } from '../components/ui.jsx'
 import Cat, { CAT_SKINS } from '../components/Cat.jsx'
+import { aiStatus } from '../lib/ai.js'
 import { fmtBytes, storageBytes } from '../lib/storage.js'
 import { countImages, clearImages } from '../lib/images.js'
 import { useStore } from '../store.jsx'
@@ -10,11 +11,22 @@ export default function Settings({ navigate }) {
   const [size, setSize] = useState(null)
   const [photos, setPhotos] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [ai, setAi] = useState(null)
 
   useEffect(() => {
     setSize(storageBytes(state))
     countImages().then(setPhotos)
   }, [state])
+
+  useEffect(() => {
+    let alive = true
+    aiStatus().then((status) => {
+      if (alive) setAi(status)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   function exportJson() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -45,6 +57,35 @@ export default function Settings({ navigate }) {
           <h1 className="topbar__title">设置与说明</h1>
         </div>
       </header>
+
+      <section className="panel">
+        <SectionTitle>模型</SectionTitle>
+        <ul className="kv-list">
+          <li>
+            <span>状态</span>
+            <span>
+              {ai === null ? '检测中…' : ai.available ? `已连接 · ${ai.model}` : '未连接（用离线规则）'}
+              {ai?.mock ? ' · mock' : ''}
+            </span>
+          </li>
+        </ul>
+        <p className="hint hint--left">
+          密钥只在本机 <code>.env</code> 里，由 <code>server/ai.js</code> 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。
+        </p>
+        <div className="btn-row">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={async () => {
+              const status = await aiStatus({ force: true })
+              setAi(status)
+              notify(status.available ? '模型连上了' : '还是没连上，看看 .env 和 dev server', status.available ? 'ok' : 'warn')
+            }}
+          >
+            重新检测
+          </button>
+        </div>
+      </section>
 
       <section className="panel">
         <SectionTitle>小猫形象</SectionTitle>

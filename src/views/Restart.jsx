@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import Cat from '../components/Cat.jsx'
-import { Badge, DemoTag, Empty, Field, SectionTitle } from '../components/ui.jsx'
+import { Badge, Empty, Field, SectionTitle } from '../components/ui.jsx'
+import { aiRestart } from '../lib/ai.js'
 import { fmtRelative, todayKey } from '../lib/dates.js'
 import {
   GOAL_OPTIONS,
@@ -28,13 +29,35 @@ export default function Restart({ navigate }) {
   const [selected, setSelected] = useState([])
   const [cancelConfirm, setCancelConfirm] = useState(null)
   const [snapshotOpen, setSnapshotOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [source, setSource] = useState('rule')
+  const [aiNote, setAiNote] = useState('')
 
   const snapshot = useMemo(() => (snapshotOpen ? buildSnapshot(state) : null), [snapshotOpen, state])
 
-  function generate() {
+  async function generate() {
     dispatch({ type: 'set_restart', patch: { answers } })
-    const raw = buildRestartDraft(state, answers)
-    const checked = validateRestartDraft(raw, state)
+    setBusy(true)
+    // 先问本地模型；没 key / 没代理 / 超时 / 返回不合规，就用离线规则，并在草案上标出来
+    let candidate = null
+    let usedSource = 'rule'
+    let error = ''
+    const ai = await aiRestart(buildSnapshot(state), answers)
+    if (ai.ok) {
+      candidate = ai.draft
+      usedSource = 'model'
+    } else {
+      error = ai.error || ''
+    }
+    if (!candidate) {
+      // 本地规则生成有一点点延迟，避免点完瞬间跳过去
+      await new Promise((resolve) => setTimeout(resolve, 420))
+      candidate = buildRestartDraft(state, answers)
+    }
+    setSource(usedSource)
+    setAiNote(error)
+    const checked = validateRestartDraft(candidate, state)
+    setBusy(false)
     setDraft(checked.draft)
     setDropped(checked.dropped)
     setSelected(
@@ -216,8 +239,8 @@ export default function Restart({ navigate }) {
             {snapshot ? <pre className="snapshot">{JSON.stringify(snapshot, null, 2).slice(0, 1200)}</pre> : null}
           </div>
 
-          <button type="button" className="btn btn--primary btn--block" onClick={generate}>
-            生成草案
+          <button type="button" className="btn btn--primary btn--block" onClick={generate} disabled={busy}>
+            {busy ? '正在让模型过一遍…' : '生成草案'}
           </button>
           <button
             type="button"
@@ -236,10 +259,22 @@ export default function Restart({ navigate }) {
         <div className="stack">
           <section className="panel">
             <p className="panel__eyebrow">
-              <DemoTag children="规则草案" />
+              <span className={`ai-badge ${source === 'model' ? 'is-model' : ''}`}>
+                {source === 'model' ? '本地模型生成' : '离线规则生成'}
+              </span>
             </p>
             <h2 className="panel__title">{liveSummary || draft.summary}</h2>
             <p className="hint hint--tight">勾选你同意的部分，没勾的保持原样。截止日和已锁定节点不会被改。</p>
+            {source === 'model' ? (
+              <p className="ai-hint ai-hint--tight">
+                <span className="ai-hint__text">模型给的建议已经过本地校验：越界的丢弃、漏项的补成「需要你决定」。</span>
+              </p>
+            ) : null}
+            {source === 'rule' && aiNote ? (
+              <p className="ai-hint ai-hint--tight">
+                <span className="ai-hint__text">没连上模型（{aiNote}），这次用的是离线规则。</span>
+              </p>
+            ) : null}
           </section>
 
           {draft.proposals.filter((row) => row.action !== 'keep_today').length ? (

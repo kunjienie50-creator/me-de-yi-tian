@@ -8,3 +8,7 @@ dist-ssr
 # 本地工具产物（npm 缓存、自检截图）
 .npm-cache
 .dsh-check
+
+# 本地密钥（不要提交）
+.env
+.env.local
