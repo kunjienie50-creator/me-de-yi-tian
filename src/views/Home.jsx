@@ -3,9 +3,12 @@ import Cat from '../components/Cat.jsx'
 import TaskRow from '../components/TaskRow.jsx'
 import WeekStrip, { dayTaskList, projectFor } from '../components/WeekStrip.jsx'
 import { Badge, DemoTag, Empty, Field, Pips, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
+import TagPicker from '../components/TagPicker.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
 import { fmtMinutes, fmtRelative, fmtWeekday, toKey, todayKey } from '../lib/dates.js'
-import { pastDueTasks, projectProgress, todayTasks, uid, useStore } from '../store.jsx'
+import { SLOGANS } from '../lib/slogans.js'
+import { guessTagId, tagMeta } from '../lib/tags.js'
+import { boxItems, pastDueTasks, projectProgress, todayTasks, uid, useStore } from '../store.jsx'
 
 // 点猫时它换着说的话：只是陪伴，不参与任何评分
 const POKE_LINES = [
@@ -22,12 +25,15 @@ export default function Home({ navigate }) {
   const [peekDay, setPeekDay] = useState(null)
   const [pokeCount, setPokeCount] = useState(0)
   const [line, setLine] = useState(null)
+  const [sloganIndex, setSloganIndex] = useState(0)
   const today = todayKey()
 
   const list = todayTasks(state, today)
   const undone = list.filter((task) => !task.done)
   const past = pastDueTasks(state, today)
   const activeProjects = state.projects.filter((project) => project.status !== 'archived')
+  const boxed = boxItems(state)
+  const slogan = SLOGANS[sloganIndex % SLOGANS.length]
   const skin = state.settings.catSkin || 'orange'
   // 用户已经点过「今天先不管这些」的话，同一天就不再反复提示
   const dismissedToday =
@@ -79,6 +85,9 @@ export default function Home({ navigate }) {
             {fmtRelative(today)} · {fmtWeekday(today)}
           </p>
           <h1 className="topbar__title">me的一天</h1>
+          <button type="button" className="slogan" onClick={() => setSloganIndex((index) => index + 1)} title="点一下换一句">
+            {slogan}
+          </button>
         </div>
         <button type="button" className="icon-btn" onClick={() => navigate('settings')} aria-label="设置">
           ⚙
@@ -112,6 +121,23 @@ export default function Home({ navigate }) {
           <span className="home-action__hint">一条一条点，也可以跳过</span>
         </button>
       </div>
+
+      <button type="button" className="box-card" onClick={() => navigate('box')}>
+        <span className="box-card__icon" aria-hidden="true">
+          📦
+        </span>
+        <span className="box-card__body">
+          <span className="box-card__title">事件箱 · {boxed.length} 件</span>
+          <span className="box-card__hint">
+            {boxed.length
+              ? `${boxed[0].title}${boxed.length > 1 ? ` 等 ${boxed.length} 件` : ''} · 先记着，不占脑子`
+              : '想法、暂时做不完的事，都先扔进来'}
+          </span>
+        </span>
+        <span className="box-card__cta" aria-hidden="true">
+          打开 →
+        </span>
+      </button>
 
       {showRestartNotice ? (
         <button type="button" className="notice-card" onClick={() => navigate('restart')}>
@@ -192,7 +218,7 @@ export default function Home({ navigate }) {
                     </p>
                     <Pips done={progress.done} total={progress.total} />
                     <p className="goal-card__meta">
-                      截止 {fmtRelative(project.ddl)} · {project.category}
+                      截止 {fmtRelative(project.ddl)} · {tagMeta(state, project.tag, project.category)?.label || '未分类'}
                     </p>
                   </button>
                 </li>
@@ -288,12 +314,28 @@ function DayPeekSheet({ state, day, onClose, navigate }) {
 }
 
 function AddTaskSheet({ open, onClose, onSave }) {
+  const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today)
   const [est, setEst] = useState('')
   const [note, setNote] = useState('')
   const [noteForAI, setNoteForAI] = useState(false)
+  const [tag, setTag] = useState('life')
+  const [tagTouched, setTagTouched] = useState(false)
+
+  // 用户还没自己选分类时，跟着标题自动猜一个（AI 识别的演示版）
+  const guessed = guessTagId(title)
+  const activeTag = tagTouched ? tag : guessed
+
+  function addCustomTag(label) {
+    const exists = [...state.customTags].find((item) => item.label === label)
+    if (exists) return exists.id
+    const id = uid('tg')
+    dispatch({ type: 'add_tag', tag: { id, label, emoji: '🏷' } })
+    notify(`新分类「${label}」建好了`, 'ok')
+    return id
+  }
 
   function reset() {
     setTitle('')
@@ -301,6 +343,8 @@ function AddTaskSheet({ open, onClose, onSave }) {
     setEst('')
     setNote('')
     setNoteForAI(false)
+    setTag('life')
+    setTagTouched(false)
   }
 
   function submit() {
@@ -311,7 +355,8 @@ function AddTaskSheet({ open, onClose, onSave }) {
       kind: 'normal',
       projectId: null,
       title: text,
-      category: '日常',
+      category: '',
+      tag: activeTag,
       date,
       est_min: est ? Math.max(5, Math.round(Number(est))) : null,
       done: false,
@@ -349,6 +394,16 @@ function AddTaskSheet({ open, onClose, onSave }) {
           autoComplete="off"
         />
       </Field>
+      <TagPicker
+        value={activeTag}
+        onChange={(next) => {
+          setTagTouched(true)
+          setTag(next)
+        }}
+        extraTags={state.customTags}
+        onAddTag={addCustomTag}
+        label={`分类（AI 认的是「${tagMeta(state, activeTag)?.label || '生活琐事'}」，可以改）`}
+      />
       <div className="row-2">
         <Field label="哪天" htmlFor="add-date">
           <input id="add-date" className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />

@@ -1,5 +1,7 @@
 import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import { colorVars, NEUTRAL_COLOR } from '../lib/colors.js'
+import { tagMeta } from '../lib/tags.js'
+import { useStore } from '../store.jsx'
 import { Badge } from './ui.jsx'
 
 /**
@@ -17,7 +19,9 @@ export default function TaskRow({
   showDate = false,
   highlight = false,
 }) {
+  const { state } = useStore()
   const today = todayKey()
+  const tag = tagMeta(state, task.tag, task.category)
   const meta = []
   if (showDate) meta.push(fmtRelative(task.date, today))
   if (task.est_min) meta.push(`约 ${fmtMinutes(task.est_min)}`)
@@ -49,7 +53,9 @@ export default function TaskRow({
               <span className="task-row__project">{project.title}</span>
             </>
           ) : (
-            <span>{task.category || '日常'}</span>
+            <span className="task-row__tag">
+              {tag ? `${tag.emoji} ${tag.label}` : '未分类'}
+            </span>
           )}
           {meta.length ? <span className="task-row__sep"> · </span> : null}
           {meta.join(' · ')}

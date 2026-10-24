@@ -1,5 +1,6 @@
 // 可路演种子数据：一个长期目标、跨日期子任务、今日普通任务、已完成节点、待处理节点
 import { addDays, todayKey } from './dates.js'
+import { guessTagId } from './tags.js'
 
 export const SCHEMA_VERSION = 1
 
@@ -9,6 +10,7 @@ const node = (id, projectId, title, date, est_min, extra = {}) => ({
   projectId,
   title,
   category: extra.category || '备赛',
+  tag: extra.tag || guessTagId(title),
   date,
   est_min,
   done: false,
@@ -25,6 +27,7 @@ const normal = (id, title, date, est_min, extra = {}) => ({
   projectId: null,
   title,
   category: '日常',
+  tag: extra.tag || guessTagId(title),
   date,
   est_min,
   done: false,
@@ -50,6 +53,7 @@ export function createSeedState() {
         id: 'p1',
         title: '准备比赛路演',
         category: '备赛',
+        tag: 'work',
         ddl: addDays(today, 6),
         createdAt,
         status: 'active',
@@ -58,6 +62,7 @@ export function createSeedState() {
         id: 'p2',
         title: '投递实习申请',
         category: '求职',
+        tag: 'work',
         ddl: today,
         createdAt,
         status: 'active',
@@ -84,6 +89,29 @@ export function createSeedState() {
         completedAt: new Date(now.getTime() - 7200000).toISOString(),
       }),
     ],
+    box: [
+      {
+        id: 'bx1',
+        title: '把旧照片整理成相册',
+        note: '',
+        source: 'manual',
+        fromTaskId: null,
+        fromProjectId: null,
+        tag: 'life',
+        createdAt: new Date(now.getTime() - 2 * 86400000).toISOString(),
+      },
+      {
+        id: 'bx2',
+        title: '试录一期播客的开场',
+        note: '',
+        source: 'manual',
+        fromTaskId: null,
+        fromProjectId: null,
+        tag: 'fun',
+        createdAt: new Date(now.getTime() - 4 * 86400000).toISOString(),
+      },
+    ],
+    customTags: [],
     timer: null,
     sessions: [
       {

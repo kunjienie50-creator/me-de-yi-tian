@@ -55,8 +55,39 @@ export default function Restart({ navigate }) {
     setStep('done')
   }
 
+  // 用户可能在草案页里直接把某件事收进事件箱，标题上的数量要跟着变
+  function isAlive(nodeId) {
+    const task = state.tasks.find((row) => row.id === nodeId)
+    return Boolean(task) && task.status !== 'boxed' && task.status !== 'cancelled'
+  }
+
+  const draftCounts = draft
+    ? {
+        schedule: draft.proposals.filter((row) => row.action !== 'keep_today' && isAlive(row.node_id)).length,
+        cancel: draft.suggest_cancel.filter((row) => isAlive(row.node_id)).length,
+        conflicts: draft.conflicts.filter((row) => isAlive(row.node_id)).length,
+      }
+    : null
+
+  const liveSummary = draftCounts
+    ? [
+        draftCounts.schedule ? `${draftCounts.schedule} 个建议安排` : '',
+        draftCounts.cancel ? `${draftCounts.cancel} 个建议放下` : '',
+        draftCounts.conflicts ? `${draftCounts.conflicts} 个要你决定` : '',
+      ]
+        .filter(Boolean)
+        .join('，')
+    : ''
+
   function toggleCancel(nodeId) {
     setCancelConfirm(nodeId)
+  }
+
+  // 用户说「这件事先不做了」：收进事件箱，比直接取消更温和，之后还能取出来
+  function boxIt(nodeId) {
+    dispatch({ type: 'task_to_box', taskId: nodeId })
+    setCancelConfirm(null)
+    notify('已放进事件箱，任务本身保留', 'ok')
   }
 
   function confirmCancel(nodeId) {
@@ -178,7 +209,7 @@ export default function Restart({ navigate }) {
           <p className="hint hint--left">不回答也可以，我会按「还不确定」处理，不推断成失败。</p>
 
           <div className="notice">
-            <p>草案只是建议：每件未完成的事都会明确出现在「建议安排 / 建议取消 / 需要你决定」里，不会漏项。</p>
+            <p>草案只是建议：每件未完成的事都会明确出现在「建议安排 / 建议放下 / 需要你决定」里，不会漏项。</p>
             <button type="button" className="link-btn" onClick={() => setSnapshotOpen((prev) => !prev)}>
               {snapshotOpen ? '收起' : '看看会发给模型的快照'}
             </button>
@@ -207,7 +238,7 @@ export default function Restart({ navigate }) {
             <p className="panel__eyebrow">
               <DemoTag children="规则草案" />
             </p>
-            <h2 className="panel__title">{draft.summary}</h2>
+            <h2 className="panel__title">{liveSummary || draft.summary}</h2>
             <p className="hint hint--tight">勾选你同意的部分，没勾的保持原样。截止日和已锁定节点不会被改。</p>
           </section>
 
@@ -291,9 +322,14 @@ export default function Restart({ navigate }) {
 
           {draft.suggest_cancel.length ? (
             <section className="panel panel--soft">
-              <SectionTitle>建议取消（需你确认）</SectionTitle>
+              <SectionTitle>建议放下（需你确认）</SectionTitle>
               <ul className="proposal-list">
-                {draft.suggest_cancel.map((row) => {
+                {draft.suggest_cancel
+                  .filter((row) => {
+                    const node = state.tasks.find((task) => task.id === row.node_id)
+                    return node && node.status !== 'cancelled' && node.status !== 'boxed'
+                  })
+                  .map((row) => {
                   const node = state.tasks.find((task) => task.id === row.node_id)
                   return (
                     <li key={row.node_id} className="proposal">
@@ -309,9 +345,14 @@ export default function Restart({ navigate }) {
                           </button>
                         </div>
                       ) : (
-                        <button type="button" className="link-btn" onClick={() => toggleCancel(row.node_id)}>
-                          取消它…
-                        </button>
+                        <div className="btn-row">
+                          <button type="button" className="link-btn" onClick={() => toggleCancel(row.node_id)}>
+                            取消它…
+                          </button>
+                          <button type="button" className="link-btn" onClick={() => boxIt(row.node_id)}>
+                            放进事件箱
+                          </button>
+                        </div>
                       )}
                     </li>
                   )

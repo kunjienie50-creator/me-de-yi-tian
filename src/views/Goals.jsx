@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
+import TagPicker from '../components/TagPicker.jsx'
 import { Badge, DemoTag, Empty, Field, FullScreen, Pips } from '../components/ui.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
 import { GRANULARITY_LABEL, decompose, fakeLatency, validateDraft } from '../lib/decompose.js'
 import { addDays, diffDays, fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import { detectConflicts, planEven } from '../lib/schedule.js'
+import { guessTagId, tagMeta } from '../lib/tags.js'
 import { projectNodes, projectProgress, uid, useStore } from '../store.jsx'
 
 export default function Goals({ navigate }) {
@@ -42,7 +44,7 @@ export default function Goals({ navigate }) {
                       <span className="project-card__dot" aria-hidden="true" />
                       {project.title}
                     </h2>
-                    <Badge tone="soft">{project.category}</Badge>
+                    <Badge tone="soft">{tagMeta(state, project.tag, project.category)?.label || '未分类'}</Badge>
                   </div>
                   <Pips done={progress.done} total={progress.total} />
                   <p className="project-card__meta">
@@ -88,6 +90,7 @@ export default function Goals({ navigate }) {
 const STEPS = ['input', 'draft', 'ddl', 'plan']
 
 function GoalWizard({ open, onClose, onCreate }) {
+  const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const [step, setStep] = useState('input')
   const [raw, setRaw] = useState('')
@@ -97,6 +100,7 @@ function GoalWizard({ open, onClose, onCreate }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [nodes, setNodes] = useState([])
+  const [tag, setTag] = useState('work')
   const [ddl, setDdl] = useState(addDays(today, 6))
 
   function resetAll() {
@@ -106,6 +110,7 @@ function GoalWizard({ open, onClose, onCreate }) {
     setIssues([])
     setTitle('')
     setCategory('')
+    setTag('work')
     setDdl(addDays(today, 6))
     setGranularity('default')
   }
@@ -124,6 +129,8 @@ function GoalWizard({ open, onClose, onCreate }) {
     }
     setTitle(checked.draft.title || raw.trim())
     setCategory(checked.draft.category || '日常')
+    // 演示版的「AI 分类」：按目标描述猜一个，用户可以改
+    setTag(guessTagId(`${raw} ${checked.draft.title || ''}`))
     setNodes(
       (checked.draft.nodes || []).map((node, index) => ({
         key: `n${index}_${Math.random().toString(36).slice(2, 5)}`,
@@ -162,7 +169,8 @@ function GoalWizard({ open, onClose, onCreate }) {
     const project = {
       id: projectId,
       title: title.trim() || raw.trim(),
-      category: category || '日常',
+      category: category || '',
+      tag,
       ddl,
       createdAt: new Date().toISOString(),
       status: 'active',
@@ -173,6 +181,7 @@ function GoalWizard({ open, onClose, onCreate }) {
       projectId,
       title: node.label,
       category: node.category,
+      tag,
       date: plan.get(node.key) || ddl,
       est_min: node.est_min,
       done: false,
@@ -229,6 +238,19 @@ function GoalWizard({ open, onClose, onCreate }) {
           <Field label="目标名称" htmlFor="wiz-title">
             <input id="wiz-title" className="input" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={40} />
           </Field>
+
+          <TagPicker
+            value={tag}
+            onChange={setTag}
+            extraTags={state.customTags}
+            onAddTag={(label) => {
+              const id = uid('tg')
+              dispatch({ type: 'add_tag', tag: { id, label, emoji: '🏷' } })
+              notify(`新分类「${label}」建好了`, 'ok')
+              return id
+            }}
+            label="这件事属于哪一类（AI 先猜了一个，节点会一起带上这个分类）"
+          />
 
           <div className="draft-head">
             <span className="draft-head__label">子任务清单（可改）</span>

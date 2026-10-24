@@ -33,6 +33,17 @@ export default function Bedtime({ navigate }) {
     setResults((prev) => ({ ...prev, [taskId]: prev[taskId] === value ? null : value }))
   }
 
+  // 做不完、又不想直接删：收进事件箱，任务本体留着，只是离开日程
+  function boxIt(task) {
+    dispatch({ type: 'task_to_box', taskId: task.id })
+    setResults((prev) => {
+      const next = { ...prev }
+      delete next[task.id]
+      return next
+    })
+    notify(`「${task.title}」收进事件箱了，想好了再取出来`, 'ok')
+  }
+
   function save() {
     const items = list.map((task) => {
       const result = results[task.id] || (task.done ? 'done' : 'unknown')
@@ -170,6 +181,11 @@ export default function Bedtime({ navigate }) {
                       </button>
                     ))}
                   </div>
+                  {value === 'undone' ? (
+                    <button type="button" className="link-btn link-btn--night" onClick={() => boxIt(task)}>
+                      这件事先收进事件箱，之后再说 →
+                    </button>
+                  ) : null}
                   {value && value !== 'unknown' && task.est_min ? (
                     <div className="est-row">
                       <span className="est-row__label">下次估时？</span>

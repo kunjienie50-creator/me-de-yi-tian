@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Badge, DemoTag, Empty, Pips } from '../components/ui.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
 import { addDays, dayRange, diffDays, fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
+import { tagMeta } from '../lib/tags.js'
 import { clampDate, detectConflicts, earliestDate } from '../lib/schedule.js'
 import { projectNodes, projectProgress, useStore } from '../store.jsx'
 
@@ -77,7 +78,7 @@ export default function Schedule({ projectId, navigate }) {
           <h1 className="topbar__title">{project.title}</h1>
           <p className="topbar__date">
             截止 {fmtRelative(project.ddl)} ·{' '}
-            {diffDays(today, project.ddl) >= 0 ? `还剩 ${diffDays(today, project.ddl)} 天` : '已过期'} · {project.category}
+            {diffDays(today, project.ddl) >= 0 ? `还剩 ${diffDays(today, project.ddl)} 天` : '已过期'} · {tagMeta(state, project.tag, project.category)?.label || '未分类'}
           </p>
         </div>
       </header>

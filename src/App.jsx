@@ -8,6 +8,7 @@ import Bedtime from './views/Bedtime.jsx'
 import Restart from './views/Restart.jsx'
 import Review from './views/Review.jsx'
 import Settings from './views/Settings.jsx'
+import Box from './views/Box.jsx'
 import { fmtStopwatch } from './lib/dates.js'
 import { StoreProvider, useStore } from './store.jsx'
 
@@ -18,11 +19,16 @@ const TABS = [
   { view: 'review', label: '回顾', icon: '✦' },
 ]
 
-const FULL_VIEWS = ['bedtime', 'restart', 'settings']
+const FULL_VIEWS = ['bedtime', 'restart', 'settings', 'box']
 
 function Shell() {
   const { state, now } = useStore()
-  const [route, setRoute] = useState({ view: 'home', params: {} })
+  // 支持用地址栏直达某一页（#box / #goals …），方便自己调试和演示时跳转
+  const [route, setRoute] = useState(() => {
+    const hash = window.location.hash.replace('#', '')
+    const allowed = ['home', 'goals', 'timer', 'review', 'bedtime', 'restart', 'settings', 'box']
+    return { view: allowed.includes(hash) ? hash : 'home', params: {} }
+  })
   const scrollRef = useRef(null)
 
   function navigate(view, params = {}) {
@@ -32,6 +38,23 @@ function Shell() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [route.view, route.params.projectId])
+
+  // 让地址栏跟着当前页走，刷新后能停在原地；也支持手改 #box 之类直接跳
+  useEffect(() => {
+    if (route.view === 'schedule') return
+    const next = route.view === 'home' ? '#home' : `#${route.view}`
+    if (window.location.hash !== next) window.history.replaceState(null, '', next)
+  }, [route.view])
+
+  useEffect(() => {
+    const allowed = ['home', 'goals', 'timer', 'review', 'bedtime', 'restart', 'settings', 'box']
+    const onHashChange = () => {
+      const hash = window.location.hash.replace('#', '')
+      if (allowed.includes(hash)) setRoute({ view: hash, params: {} })
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   const activeTab = route.view === 'schedule' ? 'goals' : route.view
   const hideTabs = FULL_VIEWS.includes(route.view)
@@ -45,6 +68,7 @@ function Shell() {
   else if (route.view === 'restart') page = <Restart navigate={navigate} />
   else if (route.view === 'review') page = <Review navigate={navigate} />
   else if (route.view === 'settings') page = <Settings navigate={navigate} />
+  else if (route.view === 'box') page = <Box navigate={navigate} />
 
   return (
     <div className={`app-shell ${route.view === 'bedtime' ? 'is-night' : ''}`}>

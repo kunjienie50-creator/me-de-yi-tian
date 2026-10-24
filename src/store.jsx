@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import { clearState, loadState, saveState } from './lib/storage.js'
 import { SCHEMA_VERSION, createSeedState } from './lib/seed.js'
 import { diffDays, todayKey } from './lib/dates.js'
+import { guessTagId } from './lib/tags.js'
 
 export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -16,6 +17,8 @@ const defaults = () => ({
   memorials: [],
   settlements: [],
   restart: { answers: { reason: null, time: null, goal: null }, draft: null, adopted: [], appliedAt: null, dismissedAt: null },
+  box: [], // 事件箱：还没定下来、暂时做不完的事都先放这儿
+  customTags: [], // 用户自己加的分类
   undo: [],
 })
 
@@ -23,7 +26,13 @@ function initState() {
   const saved = loadState()
   if (!saved) return createSeedState()
   if (saved.version !== SCHEMA_VERSION) return createSeedState()
-  return { ...defaults(), ...saved, settings: { ...defaults().settings, ...saved.settings }, restart: { ...defaults().restart, ...saved.restart } }
+  const merged = { ...defaults(), ...saved, settings: { ...defaults().settings, ...saved.settings }, restart: { ...defaults().restart, ...saved.restart } }
+  // 老数据没有分类 id，用标题补一个默认分类，别让界面空着
+  merged.tasks = (merged.tasks || []).map((task) => ({ tag: guessTagId(task.title), ...task }))
+  merged.projects = (merged.projects || []).map((project) => ({ tag: guessTagId(project.title), ...project }))
+  merged.box = merged.box || []
+  merged.customTags = merged.customTags || []
+  return merged
 }
 
 function pushUndo(state, label, changes) {
@@ -122,6 +131,44 @@ function reducer(state, action) {
 
     case 'discard_timer':
       return { ...state, timer: null }
+
+    case 'add_box':
+      return { ...state, box: [action.item, ...(state.box || [])] }
+
+    case 'remove_box':
+      return { ...state, box: (state.box || []).filter((item) => item.id !== action.id) }
+
+    /** 从箱子里取出来，变成正式计划：出箱子 + 加一条任务 */
+    case 'box_to_task':
+      return {
+        ...state,
+        box: (state.box || []).filter((item) => item.id !== action.itemId),
+        tasks: [...state.tasks, action.task],
+      }
+
+    /** 任务收进箱子：不是删除，任务本体留着，只是离开日程 */
+    case 'task_to_box': {
+      const task = state.tasks.find((row) => row.id === action.taskId)
+      if (!task) return state
+      const item = {
+        id: uid('bx'),
+        title: task.title,
+        note: action.note || '',
+        source: 'gaveup',
+        fromTaskId: task.id,
+        fromProjectId: task.projectId || null,
+        tag: task.tag,
+        createdAt: new Date().toISOString(),
+      }
+      return {
+        ...state,
+        box: [item, ...(state.box || [])],
+        tasks: state.tasks.map((row) => (row.id === task.id ? { ...row, status: 'boxed', done: false } : row)),
+      }
+    }
+
+    case 'add_tag':
+      return { ...state, customTags: [...(state.customTags || []), action.tag] }
 
     case 'add_memorial':
       return { ...state, memorials: [...state.memorials, action.memorial] }
@@ -239,13 +286,13 @@ export function useStore() {
 
 export function todayTasks(state, today = todayKey()) {
   return state.tasks
-    .filter((task) => task.date === today)
+    .filter((task) => task.date === today && task.status !== 'cancelled' && task.status !== 'boxed')
     .sort((a, b) => Number(a.done) - Number(b.done))
 }
 
 export function projectNodes(state, projectId) {
   return state.tasks
-    .filter((task) => task.projectId === projectId)
+    .filter((task) => task.projectId === projectId && task.status !== 'cancelled' && task.status !== 'boxed')
     .sort((a, b) => diffDays(b.date, a.date))
 }
 
@@ -255,18 +302,25 @@ export function projectProgress(state, projectId) {
 }
 
 export function pastDueTasks(state, today = todayKey()) {
-  return state.tasks.filter((task) => !task.done && task.status !== 'skipped' && diffDays(task.date, today) > 0)
+  return state.tasks.filter(
+    (task) =>
+      !task.done && task.status !== 'skipped' && task.status !== 'cancelled' && task.status !== 'boxed' && diffDays(task.date, today) > 0,
+  )
 }
 
 export function upcomingNodes(state, today = todayKey(), limit = 3) {
   return state.tasks
-    .filter((task) => !task.done && diffDays(today, task.date) > 0)
+    .filter((task) => !task.done && task.status !== 'cancelled' && task.status !== 'boxed' && diffDays(today, task.date) > 0)
     .sort((a, b) => diffDays(b.date, a.date))
     .slice(0, limit)
 }
 
 export function nextUndoneByProject(state, projectId, today = todayKey()) {
   return projectNodes(state, projectId).filter((node) => !node.done && diffDays(today, node.date) >= 0)
+}
+
+export function boxItems(state) {
+  return [...(state.box || [])].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
 }
 
 export function ddlsSoon(state, today = todayKey(), days = 2) {
