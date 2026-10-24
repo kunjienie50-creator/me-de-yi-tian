@@ -501,7 +501,7 @@ function GoalWizard({ seed, onClose, onCreate }) {
                 onChange={(event) => {
                   const next = event.target.value
                   if (!next) return
-                  if (diffDays(next, today) < 0) {
+                  if (diffDays(today, next) < 0) {
                     notify('截止日不能早于今天', 'warn')
                     return
                   }
