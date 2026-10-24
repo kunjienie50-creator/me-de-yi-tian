@@ -21,7 +21,7 @@ export function Badge({ tone = 'soft', children }) {
 
 export function DemoTag({ children = '演示数据' }) {
   return (
-    <span className="demo-tag" title="当前原型不接真实模型，内容由本地规则与样例生成">
+    <span className="demo-tag" title="本地原型，支持模型代理；未连接时使用离线规则与样例">
       <span aria-hidden="true">◆</span>
       {children}
     </span>

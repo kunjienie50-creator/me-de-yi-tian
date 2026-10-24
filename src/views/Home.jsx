@@ -2,38 +2,66 @@ import { useMemo, useState } from 'react'
 import Cat from '../components/Cat.jsx'
 import { useCelebrateTask } from '../components/CatAnimationContext.jsx'
 import TaskRow from '../components/TaskRow.jsx'
+import WeekStrip, { dayTaskList, projectFor } from '../components/WeekStrip.jsx'
 import { Badge, CollapsiblePanel, DemoTag, Empty, Field, Pips, Sheet, Toggle } from '../components/ui.jsx'
-import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
-import {
-  pastDueTasks,
-  projectProgress,
-  todayTasks,
-  uid,
-  upcomingNodes,
-  useStore,
-} from '../store.jsx'
+import TagPicker from '../components/TagPicker.jsx'
+import { aiNote } from '../lib/ai.js'
+import { colorVars, projectColorOf } from '../lib/colors.js'
+import { fmtClock, fmtMinutes, fmtRelative, fmtWeekday, isoToLocalInput, minutesBetween, toKey, todayKey } from '../lib/dates.js'
+import { SLOGANS } from '../lib/slogans.js'
+import { clearLeakDismiss, dismissLeak, isLeakDismissed, timerLeak } from '../lib/timer.js'
+import { guessTagId, tagMeta } from '../lib/tags.js'
+import { boxItems, pastDueTasks, projectProgress, todayTasks, uid, useStore } from '../store.jsx'
+
+// 点猫时它换着说的话：只是陪伴，不参与任何评分
+const POKE_LINES = [
+  '在呢，慢慢来。',
+  '做不完也没关系，明天还有明天。',
+  '先挑最小的一件开始？',
+  '要不要先喝口水。',
+  '我就在这儿，不催你。',
+]
 
 export default function Home({ navigate }) {
-  const { state, dispatch, notify } = useStore()
+  const { state, dispatch, notify, now, today } = useStore()
   const [addOpen, setAddOpen] = useState(false)
+  const [peekDay, setPeekDay] = useState(null)
   const celebrateTask = useCelebrateTask()
-  const today = todayKey()
+  const [line, setLine] = useState(null)
+  const [sloganIndex, setSloganIndex] = useState(0)
+  const [leakOpen, setLeakOpen] = useState(false)
+  const [leakEnd, setLeakEnd] = useState('')
+  const [leakLit, setLeakLit] = useState(false)
 
   const list = todayTasks(state, today)
   const undone = list.filter((task) => !task.done)
   const past = pastDueTasks(state, today)
-  const upcoming = upcomingNodes(state, today, 3)
   const activeProjects = state.projects.filter((project) => project.status !== 'archived')
+  const boxed = boxItems(state)
+  const slogan = SLOGANS[sloganIndex % SLOGANS.length]
+  // 用户已经点过「今天先不管这些」的话，同一天就不再反复提示
+  const dismissedToday =
+    state.restart.dismissedAt && toKey(new Date(state.restart.dismissedAt)) === today
+  const showRestartNotice = past.length > 0 && !state.restart.appliedAt && !dismissedToday
+  // 漏停提示：开了 5 小时以上，或跨天了；用户点过「先不管」就不再重复
+  const leak = timerLeak(state.timer, now, today)
+  const showLeak = Boolean(leak) && !isLeakDismissed(leak.timerId)
 
   const bubble = useMemo(() => {
+    if (line) return line
     if (state.timer) return '计时中，我帮你盯着～'
-    if (past.length && !state.restart.appliedAt) return `昨天有 ${past.length} 个节点没做完，要一起看看吗？`
+    if (showRestartNotice) return `昨天还有 ${past.length} 件没做完，先看看怎么安排？`
     if (list.length && undone.length === 0) return '今天的都点亮啦，早点休息～'
     if (undone.length) return `今天还有 ${undone.length} 件事，慢慢来。`
     return '今天想做什么呀？'
-  }, [state.timer, state.restart.appliedAt, past.length, list.length, undone.length])
+  }, [line, state.timer, showRestartNotice, past.length, list.length, undone.length])
 
   const mood = state.timer ? 'happy' : list.length && undone.length === 0 ? 'happy' : 'idle'
+
+  function pokeCat() {
+    setLine(POKE_LINES[Math.floor(Math.random() * POKE_LINES.length)])
+    window.setTimeout(() => setLine(null), 2600)
+  }
 
   function toggleTask(task) {
     dispatch({ type: 'complete_task', id: task.id, done: !task.done })
@@ -43,10 +71,53 @@ export default function Home({ navigate }) {
     }
   }
 
+  function saveLeak() {
+    if (!state.timer) return
+    const startedAt = state.timer.startedAt
+    const ended = leakEnd ? new Date(leakEnd) : null
+    if (!ended || Number.isNaN(ended.getTime())) {
+      notify('先选一下实际结束的时间', 'warn')
+      return
+    }
+    if (ended.getTime() <= new Date(startedAt).getTime()) {
+      notify('结束时间要晚于开始时间', 'warn')
+      return
+    }
+    if (ended.getTime() > Date.now() + 60000) {
+      notify('结束时间不能晚于现在', 'warn')
+      return
+    }
+    const minutes = Math.max(1, minutesBetween(startedAt, ended.toISOString()))
+    dispatch({
+      type: 'stop_timer',
+      session: {
+        id: uid('s'),
+        taskId: state.timer.taskId || null,
+        label: state.timer.label || '自由活动',
+        startedAt,
+        endedAt: ended.toISOString(),
+        minutes,
+        lit: leakLit,
+        litTaskId: leakLit ? state.timer.taskId : null,
+      },
+    })
+    clearLeakDismiss()
+    setLeakOpen(false)
+    setLeakEnd('')
+    setLeakLit(false)
+    notify(`按你说的结束时间补录了 ${fmtMinutes(minutes)}`, 'ok')
+  }
+
   function startTimer(task) {
     dispatch({
       type: 'start_timer',
-      timer: { id: uid('timer'), taskId: task.id, label: task.title, startedAt: new Date().toISOString(), status: 'running' },
+      timer: {
+        id: uid('timer'),
+        taskId: task.id,
+        label: task.title,
+        startedAt: new Date().toISOString(),
+        status: 'running',
+      },
     })
     notify(`开始计时：${task.title}`, 'ok')
     navigate('timer')
@@ -56,35 +127,100 @@ export default function Home({ navigate }) {
     <main className="screen">
       <header className="topbar">
         <div>
-          <p className="topbar__date">{fmtRelative(today)} · {fmtWeekdayCN(today)}</p>
+          <p className="topbar__date">
+            {fmtRelative(today)} · {fmtWeekday(today)}
+          </p>
           <h1 className="topbar__title">me的一天</h1>
+          <button type="button" className="slogan" onClick={() => setSloganIndex((index) => index + 1)} title="点一下换一句">
+            {slogan}
+          </button>
         </div>
         <button type="button" className="icon-btn" onClick={() => navigate('settings')} aria-label="设置">
           ⚙
         </button>
       </header>
 
+      {showLeak ? (
+        <div className="leak-bar" role="status">
+          <span className="leak-bar__text">
+            <strong>上次那条计时好像忘了停</strong>
+            <span>{leak.reason}（从 {fmtClock(leak.startedAt)} 开始），补一个结束时间？</span>
+          </span>
+          <span className="leak-bar__actions">
+            <button type="button" className="btn btn--sm btn--primary" onClick={() => setLeakOpen(true)}>
+              补录
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={() => {
+                dismissLeak(leak.timerId)
+                notify('这次先不补，提示先收起来了', 'warn')
+              }}
+            >
+              先不管
+            </button>
+          </span>
+        </div>
+      ) : null}
+
       <section className="stage stage--compact">
-        <p className="bubble" key={bubble}>{bubble}</p>
-        <Cat mood={mood} className="cat--home" />
+        <p className="bubble" key={bubble}>
+          {bubble}
+        </p>
+        <button type="button" className="cat-button" onClick={pokeCat} aria-label="摸摸小猫">
+          <Cat mood={mood} className="cat--home" />
+        </button>
       </section>
 
-      {past.length && !state.restart.appliedAt ? (
-        <button type="button" className="banner banner--restart" onClick={() => navigate('restart')}>
-          <span className="banner__title">次日温和重启</span>
-          <span className="banner__text">{past.length} 个节点停在昨天 · 先回答几个小问题，再决定怎么排</span>
-          <span className="banner__cta">去处理 →</span>
+      <WeekStrip state={state} onPickDay={setPeekDay} />
+
+      <div className="home-actions">
+        <button type="button" className="home-action home-action--timer" onClick={() => navigate('timer')}>
+          <span className="home-action__icon" aria-hidden="true">
+            ⏱
+          </span>
+          <span className="home-action__label">{state.timer ? '正在计时' : '开始计时'}</span>
+          <span className="home-action__hint">{state.timer ? '点开看时间' : '自由活动，或挂到一件任务'}</span>
+        </button>
+        <button type="button" className="home-action home-action--night" onClick={() => navigate('bedtime')}>
+          <span className="home-action__icon" aria-hidden="true">
+            🌙
+          </span>
+          <span className="home-action__label">睡前结算</span>
+          <span className="home-action__hint">一条一条点，也可以跳过</span>
+        </button>
+      </div>
+
+      <button type="button" className="box-card" onClick={() => navigate('box')}>
+        <span className="box-card__icon" aria-hidden="true">
+          📦
+        </span>
+        <span className="box-card__body">
+          <span className="box-card__title">事件箱 · {boxed.length} 件</span>
+          <span className="box-card__hint">
+            {boxed.length
+              ? `${boxed[0].title}${boxed.length > 1 ? ` 等 ${boxed.length} 件` : ''} · 先记着，不占脑子`
+              : '想法、暂时做不完的事，都先扔进来'}
+          </span>
+        </span>
+        <span className="box-card__cta" aria-hidden="true">
+          打开 →
+        </span>
+      </button>
+
+      {showRestartNotice ? (
+        <button type="button" className="notice-card" onClick={() => navigate('restart')}>
+          <span className="notice-card__title">昨天还有 {past.length} 件没做完</span>
+          <span className="notice-card__text">我不会自己往后挪，也不会改截止日。先回答两三个问题，给一份草案你挑。</span>
+          <span className="notice-card__cta">看看怎么安排 →</span>
         </button>
       ) : null}
 
       <CollapsiblePanel
-        eyebrow="今天"
+        eyebrow="今天要做的"
         title={`点亮 ${list.filter((t) => t.done).length} / ${list.length} 件事`}
-        action={
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setAddOpen(true)}>
-            + 加一条
-          </button>
-        }
+        action={<button type="button" className="btn btn--ghost btn--sm" onClick={() => setAddOpen(true)}>+ 加一条</button>}
       >
         {list.length ? (
           <ul className="task-list">
@@ -92,7 +228,8 @@ export default function Home({ navigate }) {
               <TaskRow
                 key={task.id}
                 task={task}
-                project={task.projectId ? state.projects.find((p) => p.id === task.projectId) : null}
+                project={projectFor(state, task.projectId)}
+                color={projectColorOf(state, task.projectId)}
                 onToggle={toggleTask}
                 onTimer={startTimer}
                 onOpenTask={(row) =>
@@ -114,32 +251,33 @@ export default function Home({ navigate }) {
         )}
       </CollapsiblePanel>
 
-      {upcoming.length ? (
-        <CollapsiblePanel soft title="接下来" action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>管理目标</button>}>
-          <ul className="mini-list">
-            {upcoming.map((task) => (
-              <li key={task.id}>
-                <span className="mini-list__date">{fmtRelative(task.date)}</span>
-                <span className="mini-list__title">{task.title}</span>
-                {task.est_min ? <span className="mini-list__est">{fmtMinutes(task.est_min)}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </CollapsiblePanel>
-      ) : null}
-
-      <CollapsiblePanel soft title="长期目标" action={<button type="button" className="link-btn" onClick={() => navigate('goals')}>全部目标</button>}>
+      <CollapsiblePanel soft title="长期目标"
+          action={
+            <button type="button" className="link-btn" onClick={() => navigate('goals')}>
+              全部目标
+            </button>
+          }
+      >
         {activeProjects.length ? (
           <ul className="goal-strip">
             {activeProjects.map((project) => {
               const progress = projectProgress(state, project.id)
+              const color = projectColorOf(state, project.id)
               return (
                 <li key={project.id}>
-                  <button type="button" className="goal-card" onClick={() => navigate('schedule', { projectId: project.id })}>
-                    <p className="goal-card__title">{project.title}</p>
+                  <button
+                    type="button"
+                    className="goal-card"
+                    style={colorVars(color)}
+                    onClick={() => navigate('schedule', { projectId: project.id })}
+                  >
+                    <p className="goal-card__title">
+                      <span className="goal-card__dot" aria-hidden="true" />
+                      {project.title}
+                    </p>
                     <Pips done={progress.done} total={progress.total} />
                     <p className="goal-card__meta">
-                      截止 {fmtRelative(project.ddl)} · {project.category}
+                      截止 {fmtRelative(project.ddl)} · {tagMeta(state, project.tag, project.category)?.label || '未分类'}
                     </p>
                   </button>
                 </li>
@@ -147,32 +285,20 @@ export default function Home({ navigate }) {
             })}
           </ul>
         ) : (
-          <Empty title="还没有长期目标" hint="把「想做成的事」拆成能打卡的节点。"
-            action={<button type="button" className="btn btn--primary" onClick={() => navigate('goals')}>新建目标</button>} />
+          <Empty
+            title="还没有长期目标"
+            hint="把「想做成的事」拆成能打卡的节点。"
+            action={
+              <button type="button" className="btn btn--primary" onClick={() => navigate('goals')}>
+                新建目标
+              </button>
+            }
+          />
         )}
       </CollapsiblePanel>
 
-      <section className="quick-grid">
-        <button type="button" className="quick" onClick={() => navigate('timer')}>
-          <span className="quick__icon">⏱</span>
-          <span className="quick__label">{state.timer ? '正在计时' : '开始计时'}</span>
-        </button>
-        <button type="button" className="quick" onClick={() => navigate('bedtime')}>
-          <span className="quick__icon">🌙</span>
-          <span className="quick__label">睡前结算</span>
-        </button>
-        <button type="button" className="quick" onClick={() => navigate('review')}>
-          <span className="quick__icon">✦</span>
-          <span className="quick__label">一天回顾</span>
-        </button>
-        <button type="button" className="quick" onClick={() => navigate('restart')}>
-          <span className="quick__icon">↺</span>
-          <span className="quick__label">温和重启</span>
-        </button>
-      </section>
-
       <p className="footnote">
-        <DemoTag children="本地原型" /> 数据只存在这台设备的浏览器里，不上传、不同步。
+        <DemoTag children="本地原型" /> 任务与记录保存在当前浏览器，不跨设备同步。
       </p>
 
       <AddTaskSheet
@@ -184,17 +310,144 @@ export default function Home({ navigate }) {
           notify('记下了', 'ok')
         }}
       />
+
+      <DayPeekSheet state={state} day={peekDay} onClose={() => setPeekDay(null)} navigate={navigate} />
+
+      <Sheet
+        open={leakOpen}
+        title="补一个结束时间"
+        subtitle="我不猜你几点停的，填你实际放下的那个时间就行。"
+        onClose={() => setLeakOpen(false)}
+        footer={
+          <div className="btn-row">
+            <button type="button" className="btn btn--ghost" onClick={() => setLeakOpen(false)}>
+              取消
+            </button>
+            <button type="button" className="btn btn--primary" disabled={!leakEnd} onClick={saveLeak}>
+              按这个时间补录
+            </button>
+          </div>
+        }
+      >
+        <Field label="实际几点结束的" htmlFor="leak-end" hint={`开始于 ${state.timer ? fmtClock(state.timer.startedAt) : '--'}，只能填开始之后、现在之前的时间。`}>
+          <input
+            id="leak-end"
+            className="input"
+            type="datetime-local"
+            value={leakEnd}
+            min={state.timer ? isoToLocalInput(state.timer.startedAt) : undefined}
+            max={isoToLocalInput(new Date().toISOString())}
+            onChange={(event) => setLeakEnd(event.target.value)}
+          />
+        </Field>
+        <Toggle
+          checked={leakLit}
+          onChange={setLeakLit}
+          label="这次算点亮那条节点"
+          hint="不勾选就只记录时间，不改进度。"
+        />
+      </Sheet>
     </main>
   )
 }
 
+/** 点日历里某一天：看一眼那天的安排（只读，改动去排期或今日清单） */
+function DayPeekSheet({ state, day, onClose, navigate }) {
+  const tasks = day ? dayTaskList(state, day) : []
+  const minutes = tasks.reduce((sum, task) => sum + (task.est_min || 0), 0)
+
+  return (
+    <Sheet
+      open={Boolean(day)}
+      title={day ? `${fmtRelative(day)}的安排` : ''}
+      subtitle={day ? `${tasks.length} 件 · 预计 ${fmtMinutes(minutes)}` : ''}
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn btn--ghost btn--block" onClick={onClose}>
+          知道了
+        </button>
+      }
+    >
+      {tasks.length ? (
+        <ul className="peek-list">
+          {tasks.map((task) => {
+            const project = projectFor(state, task.projectId)
+            return (
+              <li key={task.id} className={task.done ? 'is-done' : ''}>
+                <span className="peek-list__dot" style={colorVars(projectColorOf(state, task.projectId))} aria-hidden="true" />
+                <span className="peek-list__body">
+                  <span className="peek-list__title">{task.title}</span>
+                  <span className="peek-list__meta">
+                    {project ? project.title : task.category || '日常'}
+                    {task.est_min ? ` · ${fmtMinutes(task.est_min)}` : ''}
+                    {task.locked ? ' · 已锁定' : ''}
+                  </span>
+                </span>
+                {task.done ? <span className="peek-list__flag">已点亮</span> : null}
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <Empty title="这天还空着" hint="空着也挺好，不一定要塞满。" />
+      )}
+      {day && tasks.some((task) => task.projectId) ? (
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => {
+            const first = tasks.find((task) => task.projectId)
+            navigate('schedule', { projectId: first.projectId })
+          }}
+        >
+          去排期页调整
+        </button>
+      ) : null}
+    </Sheet>
+  )
+}
+
 function AddTaskSheet({ open, onClose, onSave }) {
+  const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today)
   const [est, setEst] = useState('')
   const [note, setNote] = useState('')
   const [noteForAI, setNoteForAI] = useState(false)
+  const [tag, setTag] = useState('life')
+  const [tagTouched, setTagTouched] = useState(false)
+  const [noteBusy, setNoteBusy] = useState(false)
+  const [noteFromAI, setNoteFromAI] = useState(false)
+
+  // 用户还没自己选分类时，跟着标题自动猜一个（AI 识别的演示版）
+  const guessed = guessTagId(title)
+  const activeTag = tagTouched ? tag : guessed
+
+  function addCustomTag(label) {
+    const exists = [...state.customTags].find((item) => item.label === label)
+    if (exists) return exists.id
+    const id = uid('tg')
+    dispatch({ type: 'add_tag', tag: { id, label, emoji: '🏷' } })
+    notify(`新分类「${label}」建好了`, 'ok')
+    return id
+  }
+
+  // 让本地模型把标题补成一句具体提醒；没连上就提示用户自己写
+  async function askModelForNote() {
+    const text = title.trim()
+    if (!text || noteBusy) return
+    setNoteBusy(true)
+    const res = await aiNote(text, tagMeta(state, activeTag)?.label || '')
+    setNoteBusy(false)
+    if (res.ok && res.note) {
+      setNote(res.note.slice(0, 80))
+      setNoteFromAI(true)
+      notify('模型补了一句，你看看要不要改', 'ok')
+      return
+    }
+    notify('没连上模型，先自己写一句吧', 'warn')
+  }
 
   function reset() {
     setTitle('')
@@ -202,6 +455,9 @@ function AddTaskSheet({ open, onClose, onSave }) {
     setEst('')
     setNote('')
     setNoteForAI(false)
+    setTag('life')
+    setTagTouched(false)
+    setNoteFromAI(false)
   }
 
   function submit() {
@@ -212,7 +468,8 @@ function AddTaskSheet({ open, onClose, onSave }) {
       kind: 'normal',
       projectId: null,
       title: text,
-      category: '日常',
+      category: '',
+      tag: activeTag,
       date,
       est_min: est ? Math.max(5, Math.round(Number(est))) : null,
       done: false,
@@ -250,6 +507,16 @@ function AddTaskSheet({ open, onClose, onSave }) {
           autoComplete="off"
         />
       </Field>
+      <TagPicker
+        value={activeTag}
+        onChange={(next) => {
+          setTagTouched(true)
+          setTag(next)
+        }}
+        extraTags={state.customTags}
+        onAddTag={addCustomTag}
+        label={`分类（AI 认的是「${tagMeta(state, activeTag)?.label || '生活琐事'}」，可以改）`}
+      />
       <div className="row-2">
         <Field label="哪天" htmlFor="add-date">
           <input id="add-date" className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -273,11 +540,20 @@ function AddTaskSheet({ open, onClose, onSave }) {
           id="add-note"
           className="input input--area"
           value={note}
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event) => {
+            setNote(event.target.value)
+            setNoteFromAI(false)
+          }}
           rows={2}
           maxLength={80}
           placeholder="给自己的一句提醒"
         />
+        <div className="note-row">
+          <button type="button" className="link-btn" onClick={askModelForNote} disabled={!title.trim() || noteBusy}>
+            {noteBusy ? '模型想一句…' : '帮我补一句'}
+          </button>
+          {noteFromAI ? <span className="ai-hint__text">这句是模型补的，可以改。</span> : null}
+        </div>
       </Field>
       <Toggle
         checked={noteForAI}
@@ -290,10 +566,4 @@ function AddTaskSheet({ open, onClose, onSave }) {
       </p>
     </Sheet>
   )
-}
-
-function fmtWeekdayCN(key) {
-  const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const [y, m, d] = key.split('-').map(Number)
-  return WEEK[new Date(y, m - 1, d).getDay()]
 }

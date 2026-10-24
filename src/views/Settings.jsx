@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, DemoTag, Field, SectionTitle } from '../components/ui.jsx'
+import Cat from '../components/Cat.jsx'
+import { aiStatus } from '../lib/ai.js'
 import { fmtBytes, storageBytes } from '../lib/storage.js'
 import { countImages, clearImages } from '../lib/images.js'
 import { useStore } from '../store.jsx'
@@ -9,11 +11,22 @@ export default function Settings({ navigate }) {
   const [size, setSize] = useState(null)
   const [photos, setPhotos] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [ai, setAi] = useState(null)
 
   useEffect(() => {
     setSize(storageBytes(state))
     countImages().then(setPhotos)
   }, [state])
+
+  useEffect(() => {
+    let alive = true
+    aiStatus().then((status) => {
+      if (alive) setAi(status)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   function exportJson() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -44,6 +57,41 @@ export default function Settings({ navigate }) {
           <h1 className="topbar__title">设置与说明</h1>
         </div>
       </header>
+
+      <section className="panel">
+        <SectionTitle>模型</SectionTitle>
+        <ul className="kv-list">
+          <li>
+            <span>状态</span>
+            <span>
+              {ai === null ? '检测中…' : ai.available ? `已连接 · ${ai.model}` : '未连接（用离线规则）'}
+              {ai?.mock ? ' · mock' : ''}
+            </span>
+          </li>
+        </ul>
+        <p className="hint hint--left">
+          密钥只在本机 <code>.env</code> 里，由 <code>server/ai.js</code> 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。
+        </p>
+        <div className="btn-row">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={async () => {
+              const status = await aiStatus({ force: true })
+              setAi(status)
+              notify(status.available ? '模型连上了' : '还是没连上，看看 .env 和 dev server', status.available ? 'ok' : 'warn')
+            }}
+          >
+            重新检测
+          </button>
+        </div>
+      </section>
+
+      <section className="panel">
+        <SectionTitle>小猫陪伴</SectionTitle>
+        <p className="hint hint--left">点击界面，小猫会动一动；每点亮一件任务，它会翻滚一次庆祝。</p>
+        <Cat mood="idle" className="cat--settings" />
+      </section>
 
       <section className="panel">
         <SectionTitle>睡前时间</SectionTitle>
@@ -100,7 +148,7 @@ export default function Settings({ navigate }) {
         <SectionTitle>这个原型做了什么</SectionTitle>
         <ul className="about-list">
           <li>
-            <Badge tone="soft">演示模式</Badge> 拆解与重启草案由本地规则和预置样例生成，没有调用任何模型。
+            <Badge tone="soft">演示模式</Badge> 拆解与重启支持连接本地模型代理；未连接时由离线规则生成建议。
           </li>
           <li>
             <Badge tone="soft">你确认才生效</Badge> 草案先展示、再校验、勾选后才写入；截止日与锁定节点不会被改动。
@@ -109,7 +157,7 @@ export default function Settings({ navigate }) {
             <Badge tone="soft">不评价</Badge> 没回答＝未知，不推断为失败；没做完的事不进分享。
           </li>
           <li>
-            <Badge tone="soft">纯本地</Badge> 没有登录、后端或数据库，数据只在当前浏览器。
+            <Badge tone="soft">纯本地</Badge> 任务与记录保存在当前浏览器；使用模型时，生成请求经本地代理发送。
           </li>
         </ul>
       </section>
@@ -117,7 +165,7 @@ export default function Settings({ navigate }) {
       <section className="panel panel--soft">
         <SectionTitle>暂未包含</SectionTitle>
         <p className="hint hint--left">
-          登录与多端同步 · 真实模型调用 · 系统级浮窗 · 长期子任务的永久删除入口 · 图片导出文件。
+          登录与多端同步 · 系统级浮窗 · 长期子任务的永久删除入口 · 图片导出文件。
           这些都在后续阶段处理，不在这次原型里假装做了。
         </p>
       </section>

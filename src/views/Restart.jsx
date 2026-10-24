@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import Cat from '../components/Cat.jsx'
-import { Badge, DemoTag, Empty, Field, SectionTitle } from '../components/ui.jsx'
+import { Badge, Empty, Field, SectionTitle } from '../components/ui.jsx'
+import { aiRestart } from '../lib/ai.js'
 import { fmtRelative, todayKey } from '../lib/dates.js'
 import {
   GOAL_OPTIONS,
@@ -14,27 +15,49 @@ import {
 } from '../lib/restart.js'
 import { useStore } from '../store.jsx'
 
-const STEPS = ['intro', 'ask', 'draft', 'done']
+const STEPS = ['ask', 'draft', 'done']
 
 export default function Restart({ navigate }) {
   const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const nodes = useMemo(() => collectRestartNodes(state), [state.tasks, today])
 
-  const [step, setStep] = useState('intro')
+  const [step, setStep] = useState('ask')
   const [answers, setAnswers] = useState({ reason: null, time: null, goal: null })
   const [draft, setDraft] = useState(null)
   const [dropped, setDropped] = useState([])
   const [selected, setSelected] = useState([])
   const [cancelConfirm, setCancelConfirm] = useState(null)
   const [snapshotOpen, setSnapshotOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [source, setSource] = useState('rule')
+  const [aiNote, setAiNote] = useState('')
 
   const snapshot = useMemo(() => (snapshotOpen ? buildSnapshot(state) : null), [snapshotOpen, state])
 
-  function generate() {
+  async function generate() {
     dispatch({ type: 'set_restart', patch: { answers } })
-    const raw = buildRestartDraft(state, answers)
-    const checked = validateRestartDraft(raw, state)
+    setBusy(true)
+    // 先问本地模型；没 key / 没代理 / 超时 / 返回不合规，就用离线规则，并在草案上标出来
+    let candidate = null
+    let usedSource = 'rule'
+    let error = ''
+    const ai = await aiRestart(buildSnapshot(state), answers)
+    if (ai.ok) {
+      candidate = ai.draft
+      usedSource = 'model'
+    } else {
+      error = ai.error || ''
+    }
+    if (!candidate) {
+      // 本地规则生成有一点点延迟，避免点完瞬间跳过去
+      await new Promise((resolve) => setTimeout(resolve, 420))
+      candidate = buildRestartDraft(state, answers)
+    }
+    setSource(usedSource)
+    setAiNote(error)
+    const checked = validateRestartDraft(candidate, state)
+    setBusy(false)
     setDraft(checked.draft)
     setDropped(checked.dropped)
     setSelected(
@@ -55,8 +78,39 @@ export default function Restart({ navigate }) {
     setStep('done')
   }
 
+  // 用户可能在草案页里直接把某件事收进事件箱，标题上的数量要跟着变
+  function isAlive(nodeId) {
+    const task = state.tasks.find((row) => row.id === nodeId)
+    return Boolean(task) && task.status !== 'boxed' && task.status !== 'cancelled'
+  }
+
+  const draftCounts = draft
+    ? {
+        schedule: draft.proposals.filter((row) => row.action !== 'keep_today' && isAlive(row.node_id)).length,
+        cancel: draft.suggest_cancel.filter((row) => isAlive(row.node_id)).length,
+        conflicts: draft.conflicts.filter((row) => isAlive(row.node_id)).length,
+      }
+    : null
+
+  const liveSummary = draftCounts
+    ? [
+        draftCounts.schedule ? `${draftCounts.schedule} 个建议安排` : '',
+        draftCounts.cancel ? `${draftCounts.cancel} 个建议放下` : '',
+        draftCounts.conflicts ? `${draftCounts.conflicts} 个要你决定` : '',
+      ]
+        .filter(Boolean)
+        .join('，')
+    : ''
+
   function toggleCancel(nodeId) {
     setCancelConfirm(nodeId)
+  }
+
+  // 用户说「这件事先不做了」：收进事件箱，比直接取消更温和，之后还能取出来
+  function boxIt(nodeId) {
+    dispatch({ type: 'task_to_box', taskId: nodeId })
+    setCancelConfirm(null)
+    notify('已放进事件箱，任务本身保留', 'ok')
   }
 
   function confirmCancel(nodeId) {
@@ -70,14 +124,14 @@ export default function Restart({ navigate }) {
       <main className="screen">
         <header className="topbar">
           <div>
-            <p className="topbar__date">温和重启</p>
+            <p className="topbar__date">昨天没做完的</p>
             <h1 className="topbar__title">今天没有需要顺延的节点</h1>
           </div>
           <button type="button" className="icon-btn" onClick={() => navigate('home')} aria-label="关闭">
             ✕
           </button>
         </header>
-        <Empty title="干干净净的一天" hint="今天之前没有留下未完成的节点，不需要重启。" />
+        <Empty title="干干净净的一天" hint="今天之前没有留下未完成的节点，这里就不打扰你了。" />
         <button type="button" className="btn btn--ghost btn--block" onClick={() => navigate('home')}>
           回到今天
         </button>
@@ -89,8 +143,8 @@ export default function Restart({ navigate }) {
     <main className="screen">
       <header className="topbar">
         <div>
-          <p className="topbar__date">第 {STEPS.indexOf(step) + 1} / 4 步</p>
-          <h1 className="topbar__title">温和重启</h1>
+          <p className="topbar__date">第 {STEPS.indexOf(step) + 1} / {STEPS.length} 步</p>
+          <h1 className="topbar__title">昨天没做完的</h1>
         </div>
         <button
           type="button"
@@ -105,13 +159,13 @@ export default function Restart({ navigate }) {
         </button>
       </header>
 
-      {step === 'intro' ? (
+      {step === 'ask' ? (
         <div className="stack">
           <div className="restart-hero">
-            <Cat mood="idle" className="cat--restart" />
+            <Cat mood="idle" skin={state.settings.catSkin || 'orange'} className="cat--restart" />
             <p className="restart-hero__text">
-              有 <strong>{nodes.length}</strong> 个节点停在今天之前。我不会自己把它们往后挪，也不会替你改截止日。
-              先回答三个小问题，我再给一份草案给你挑。
+              有 <strong>{nodes.length}</strong> 件停在今天之前。我不会自己把它们往后挪，也不会替你改截止日。
+              先回答两三个小问题，我再给一份草案给你挑。
             </p>
           </div>
 
@@ -130,24 +184,6 @@ export default function Restart({ navigate }) {
             })}
           </ul>
 
-          <div className="notice">
-            <p>草案只是建议：每个未完成节点都会明确出现在「建议安排 / 建议取消 / 需要你决定」里，不会漏项。</p>
-            <button type="button" className="link-btn" onClick={() => setSnapshotOpen((prev) => !prev)}>
-              {snapshotOpen ? '收起' : '看看会发给模型的快照'}
-            </button>
-            {snapshot ? (
-              <pre className="snapshot">{JSON.stringify(snapshot, null, 2).slice(0, 1200)}</pre>
-            ) : null}
-          </div>
-
-          <button type="button" className="btn btn--primary btn--block" onClick={() => setStep('ask')}>
-            开始回答
-          </button>
-        </div>
-      ) : null}
-
-      {step === 'ask' ? (
-        <div className="stack">
           <Field label="昨天为什么没做完？（可跳过）" hint="选什么都不会被评价，只是帮我判断该往后挪还是拆细。">
             <div className="chips">
               {REASON_OPTIONS.map((option) => (
@@ -195,14 +231,27 @@ export default function Restart({ navigate }) {
 
           <p className="hint hint--left">不回答也可以，我会按「还不确定」处理，不推断成失败。</p>
 
-          <div className="btn-row">
-            <button type="button" className="btn btn--ghost" onClick={() => setStep('intro')}>
-              上一步
+          <div className="notice">
+            <p>草案只是建议：每件未完成的事都会明确出现在「建议安排 / 建议放下 / 需要你决定」里，不会漏项。</p>
+            <button type="button" className="link-btn" onClick={() => setSnapshotOpen((prev) => !prev)}>
+              {snapshotOpen ? '收起' : '看看会发给模型的快照'}
             </button>
-            <button type="button" className="btn btn--primary" onClick={generate}>
-              生成草案
-            </button>
+            {snapshot ? <pre className="snapshot">{JSON.stringify(snapshot, null, 2).slice(0, 1200)}</pre> : null}
           </div>
+
+          <button type="button" className="btn btn--primary btn--block" onClick={generate} disabled={busy}>
+            {busy ? '正在让模型过一遍…' : '生成草案'}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--block"
+            onClick={() => {
+              dispatch({ type: 'dismiss_restart' })
+              navigate('home')
+            }}
+          >
+            今天先不管这些
+          </button>
         </div>
       ) : null}
 
@@ -210,10 +259,22 @@ export default function Restart({ navigate }) {
         <div className="stack">
           <section className="panel">
             <p className="panel__eyebrow">
-              <DemoTag children="规则草案" />
+              <span className={`ai-badge ${source === 'model' ? 'is-model' : ''}`}>
+                {source === 'model' ? '本地模型生成' : '离线规则生成'}
+              </span>
             </p>
-            <h2 className="panel__title">{draft.summary}</h2>
+            <h2 className="panel__title">{liveSummary || draft.summary}</h2>
             <p className="hint hint--tight">勾选你同意的部分，没勾的保持原样。截止日和已锁定节点不会被改。</p>
+            {source === 'model' ? (
+              <p className="ai-hint ai-hint--tight">
+                <span className="ai-hint__text">模型给的建议已经过本地校验：越界的丢弃、漏项的补成「需要你决定」。</span>
+              </p>
+            ) : null}
+            {source === 'rule' && aiNote ? (
+              <p className="ai-hint ai-hint--tight">
+                <span className="ai-hint__text">没连上模型（{aiNote}），这次用的是离线规则。</span>
+              </p>
+            ) : null}
           </section>
 
           {draft.proposals.filter((row) => row.action !== 'keep_today').length ? (
@@ -296,9 +357,14 @@ export default function Restart({ navigate }) {
 
           {draft.suggest_cancel.length ? (
             <section className="panel panel--soft">
-              <SectionTitle>建议取消（需你确认）</SectionTitle>
+              <SectionTitle>建议放下（需你确认）</SectionTitle>
               <ul className="proposal-list">
-                {draft.suggest_cancel.map((row) => {
+                {draft.suggest_cancel
+                  .filter((row) => {
+                    const node = state.tasks.find((task) => task.id === row.node_id)
+                    return node && node.status !== 'cancelled' && node.status !== 'boxed'
+                  })
+                  .map((row) => {
                   const node = state.tasks.find((task) => task.id === row.node_id)
                   return (
                     <li key={row.node_id} className="proposal">
@@ -314,9 +380,14 @@ export default function Restart({ navigate }) {
                           </button>
                         </div>
                       ) : (
-                        <button type="button" className="link-btn" onClick={() => toggleCancel(row.node_id)}>
-                          取消它…
-                        </button>
+                        <div className="btn-row">
+                          <button type="button" className="link-btn" onClick={() => toggleCancel(row.node_id)}>
+                            取消它…
+                          </button>
+                          <button type="button" className="link-btn" onClick={() => boxIt(row.node_id)}>
+                            放进事件箱
+                          </button>
+                        </div>
                       )}
                     </li>
                   )
@@ -361,8 +432,8 @@ export default function Restart({ navigate }) {
       {step === 'done' ? (
         <div className="stack">
           <div className="restart-hero">
-            <Cat mood="happy" className="cat--restart" />
-            <h2 className="restart-hero__title">重启好了</h2>
+            <Cat mood="happy" skin={state.settings.catSkin || 'orange'} className="cat--restart" />
+            <h2 className="restart-hero__title">安排好了</h2>
             <p className="restart-hero__text">
               只应用了你勾选的调整。截止日、已锁定节点、没出现在草案里的节点都保持原样。
             </p>

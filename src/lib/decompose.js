@@ -185,6 +185,21 @@ const GENERIC = {
   ],
 }
 
+// 优先级：拆分时就定下来，序号决定先后（前驱必须排在后面的事之前）
+export const PRIORITY_META = {
+  high: { label: '先做', short: 'P1', className: 'is-high' },
+  mid: { label: '接着做', short: 'P2', className: 'is-mid' },
+  low: { label: '收尾', short: 'P3', className: 'is-low' },
+}
+
+const PRIORITY_KEYS = ['high', 'mid', 'low']
+
+// 关键词判断优先级：起步/拍板类先做，检查/收尾类放后面
+const PRIORITY_RULES = {
+  high: ['定', '确认', '明确', '选', '写一句', '列', '梳理', '准备', '收集', '大纲', '提纲'],
+  low: ['检查', '收尾', '复盘', '自测', '排版', '定稿', '导出', '放松', '请朋友', '记录'],
+}
+
 export const GRANULARITY_LABEL = {
   coarse: '太粗了',
   default: '重新拆一次',
@@ -200,6 +215,22 @@ function clampEst(value) {
 function trimLabel(label) {
   const text = String(label || '').trim()
   return text.length > 20 ? `${text.slice(0, 20)}` : text
+}
+
+function normalizePriority(value, index, total) {
+  if (PRIORITY_KEYS.includes(value)) return value
+  // 没有显式给优先级时：第一个节点默认「先做」，其余默认「接着做」；
+  // 收尾类节点交给关键词规则判断，避免把「现场彩排」这种关键步骤自动降级
+  if (index === 0) return 'high'
+  return 'mid'
+}
+
+/** 按关键词给一个建议优先级（演示规则；接真模型时由模型直接给 priority） */
+function guessPriority(label, index, total) {
+  const text = String(label || '')
+  if (PRIORITY_RULES.high.some((word) => text.includes(word))) return 'high'
+  if (PRIORITY_RULES.low.some((word) => text.includes(word))) return 'low'
+  return normalizePriority(null, index, total)
 }
 
 function normalizeCategory(value) {
@@ -220,7 +251,9 @@ export function decompose(rawInput, granularity = 'default') {
   const rows = sample ? sample.sets[mode] : GENERIC[mode]
   const title = sample ? (input.length <= 20 ? input : sample.title) : input.slice(0, 20)
 
-  const nodes = rows.map(([label, est]) => ({
+  const nodes = rows.map(([label, est], index) => ({
+    seq: index + 1,
+    priority: guessPriority(label, index, rows.length),
     label: trimLabel(label),
     category: normalizeCategory(sample ? sample.category : CATEGORY_DEFAULT),
     est_min: clampEst(est),
@@ -256,12 +289,17 @@ export function validateDraft(draft) {
       label: trimLabel(node && node.label),
       category: normalizeCategory(node && node.category),
       est_min: clampEst(node && node.est_min),
+      priority: node && node.priority,
     }))
     .filter((node) => node.label)
 
-  let clean = nodes
+  let clean = nodes.map((node, index) => ({
+    ...node,
+    seq: index + 1,
+    priority: normalizePriority(node.priority, index, nodes.length),
+  }))
   if (nodes.length > 8) {
-    clean = nodes.slice(0, 8)
+    clean = clean.slice(0, 8)
     issues.push('节点超过 8 个，已截断')
   }
   if (clean.length < 2) {

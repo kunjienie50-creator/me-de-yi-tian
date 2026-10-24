@@ -1,17 +1,21 @@
 import { useMemo } from 'react'
 import { Badge, DemoTag, Empty, Pips } from '../components/ui.jsx'
-import { addDays, dayRange, diffDays, fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
-import { clampDate, detectConflicts, earliestDate } from '../lib/schedule.js'
+import { colorVars, projectColorOf } from '../lib/colors.js'
+import { addDays, dayRange, diffDays, fmtMinutes, fmtRelative } from '../lib/dates.js'
+import { tagMeta } from '../lib/tags.js'
+import { clampToNeighbors, detectConflicts, earliestDate, orderConflicts, sortBySeq } from '../lib/schedule.js'
+import { PRIORITY_META } from '../lib/decompose.js'
 import { projectNodes, projectProgress, useStore } from '../store.jsx'
 
 export default function Schedule({ projectId, navigate }) {
-  const { state, dispatch, notify } = useStore()
+  const { state, dispatch, notify, today } = useStore()
   const project = state.projects.find((item) => item.id === projectId)
-  const today = todayKey()
+  const accent = projectColorOf(state, projectId)
 
-  const nodes = useMemo(() => projectNodes(state, projectId).filter((node) => node.status !== 'cancelled'), [state.tasks, projectId])
+  const nodes = useMemo(() => sortBySeq(projectNodes(state, projectId).filter((node) => node.status !== 'cancelled')), [state.tasks, projectId])
   const progress = projectProgress(state, projectId)
   const conflicts = useMemo(() => detectConflicts(nodes, project ? project.ddl : today, today), [nodes, project, today])
+  const orderIssues = useMemo(() => orderConflicts(nodes), [nodes])
 
   if (!project) {
     return (
@@ -40,12 +44,18 @@ export default function Schedule({ projectId, navigate }) {
       notify('这个节点已锁定，先点锁取消锁定再挪', 'warn')
       return
     }
-    const next = clampDate(addDays(node.date, delta), minDate, project.ddl)
-    if (next === node.date) {
+    const index = nodes.findIndex((item) => item.id === node.id)
+    const wanted = addDays(node.date, delta)
+    const next = clampToNeighbors(nodes, index, wanted, minDate, project.ddl)
+    if (next.error) {
+      notify(next.error, 'warn')
+      return
+    }
+    if (next.date === node.date) {
       notify(delta < 0 ? '已经到最早可放的日期' : '已经到截止日了', 'warn')
       return
     }
-    dispatch({ type: 'set_changes', changes: [{ id: node.id, date: next }], label: `移动「${node.title}」` })
+    dispatch({ type: 'set_changes', changes: [{ id: node.id, date: next.date }], label: `移动「${node.title}」` })
   }
 
   function stackNode(node, index) {
@@ -55,7 +65,12 @@ export default function Schedule({ projectId, navigate }) {
     }
     const prev = nodes[index - 1]
     if (!prev) {
-      notify('这是第一天，没有可以堆叠的前一个节点', 'warn')
+      notify('这是第一个节点，前面没有可以堆叠的', 'warn')
+      return
+    }
+    const result = clampToNeighbors(nodes, index, prev.date, minDate, project.ddl)
+    if (result.error) {
+      notify(result.error, 'warn')
       return
     }
     if (diffDays(node.date, prev.date) >= 0) {
@@ -75,7 +90,7 @@ export default function Schedule({ projectId, navigate }) {
           <h1 className="topbar__title">{project.title}</h1>
           <p className="topbar__date">
             截止 {fmtRelative(project.ddl)} ·{' '}
-            {diffDays(today, project.ddl) >= 0 ? `还剩 ${diffDays(today, project.ddl)} 天` : '已过期'} · {project.category}
+            {diffDays(today, project.ddl) >= 0 ? `还剩 ${diffDays(today, project.ddl)} 天` : '已过期'} · {tagMeta(state, project.tag, project.category)?.label || '未分类'}
           </p>
         </div>
       </header>
@@ -84,6 +99,14 @@ export default function Schedule({ projectId, navigate }) {
         <Pips done={progress.done} total={progress.total} />
         <p className="hint hint--tight">进度只数点亮的节点，不算百分比。</p>
       </section>
+
+      {orderIssues.length ? (
+        <div className="notice notice--warn">
+          {orderIssues.map((issue) => (
+            <p key={issue.nodeId}>{issue.text}，前驱应该排在前面。</p>
+          ))}
+        </div>
+      ) : null}
 
       {conflicts.length ? (
         <div className={`notice ${conflicts[0].level === 'danger' ? 'notice--danger' : 'notice--warn'}`}>
@@ -112,7 +135,7 @@ export default function Schedule({ projectId, navigate }) {
         </div>
       </div>
 
-      <ul className="schedule">
+      <ul className="schedule" style={colorVars(accent)}>
         {grouped.map(({ date, items }) => (
           <li key={date} className={`schedule__day ${date === today ? 'is-today' : ''}`}>
             <div className="schedule__dayhead">
@@ -137,8 +160,12 @@ export default function Schedule({ projectId, navigate }) {
                       {node.done ? '✓' : ''}
                     </button>
                     <div className="sched-node__body">
-                      <p className="sched-node__title">{node.title}</p>
+                      <p className="sched-node__title">
+                        <span className="sched-node__seq">{node.seq || '·'}</span>
+                        {node.title}
+                      </p>
                       <p className="sched-node__meta">
+                        <span className={`prio prio--${node.priority || 'mid'}`}>{PRIORITY_META[node.priority || 'mid'].short}</span>
                         {node.est_min ? fmtMinutes(node.est_min) : '未估时'}
                         {node.locked ? ' · 已锁定' : ''}
                         {node.status === 'undone' ? ' · 已确认未完成' : ''}

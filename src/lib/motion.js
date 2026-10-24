@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 
 const SCOPE = '.app-shell, .sheet-layer, .fullscreen'
-const REVEAL = '.screen > .panel, .screen > .banner, .screen > .stage, .screen > .quick-grid, .project-card, .schedule__day, .sheet__body > .field, .fullscreen__body > .field'
-const MAGNET = '.tab, .quick, .btn--primary, .icon-btn'
+const REVEAL = '.screen > .panel, .screen > .banner, .screen > .stage, .screen > .quick-grid, .screen > .week-strip, .screen > .home-actions, .screen > .box-card, .screen > .notice-card, .screen > .leak-bar, .box-item, .project-card, .schedule__day, .sheet__body > .field, .fullscreen__body > .field'
+const MAGNET = '.tab, .quick, .home-action, .box-card, .notice-card, .btn--primary, .icon-btn'
 const TILT = '.goal-card, .project-card, .timer-card, .export-card'
 const FEEDBACK = 'button, [role="button"], a[href], summary, input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"]), .toggle, .radio, .proposal__check, .photo-picker'
 

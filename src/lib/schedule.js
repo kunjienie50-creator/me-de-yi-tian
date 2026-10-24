@@ -112,3 +112,48 @@ export function detectConflicts(nodes, ddlKey, today) {
 export function earliestDate(nodes, fallback) {
   return nodes.reduce((min, node) => (diffDays(fallback, node.date) > 0 ? fallback : min), fallback)
 }
+
+/** 同一目标内的节点顺序：seq 优先，缺省时按日期兜底 */
+export function sortBySeq(nodes) {
+  return [...nodes].sort((a, b) => {
+    const sa = Number(a.seq) || 0
+    const sb = Number(b.seq) || 0
+    if (sa && sb && sa !== sb) return sa - sb
+    return diffDays(b.date || '1970-01-01', a.date || '1970-01-01')
+  })
+}
+
+/**
+ * 前驱约束：一个节点不能排在它前一个节点之前，也不能排在后一个节点之后。
+ * 返回 { date, error }：error 有值时表示这次摆放不合法，date 保持原样。
+ */
+export function clampToNeighbors(orderedNodes, index, dateKey, minKey, maxKey) {
+  const node = orderedNodes[index]
+  const prev = orderedNodes[index - 1]
+  const next = orderedNodes[index + 1]
+  let next_ = dateKey
+
+  if (minKey && diffDays(minKey, next_) < 0) next_ = minKey
+  if (maxKey && diffDays(next_, maxKey) < 0) next_ = maxKey
+
+  if (prev && prev.date && diffDays(prev.date, next_) < 0) {
+    return { date: node.date, error: `它前面还有「${prev.title}」，前驱必须排在前面` }
+  }
+  if (next && next.date && diffDays(next_, next.date) < 0) {
+    return { date: node.date, error: `它后面还有「${next.title}」，不能排到它之后` }
+  }
+  return { date: next_, error: null }
+}
+
+/** 检查排期里有没有违反顺序的节点（用于提示，不自动改日期） */
+export function orderConflicts(orderedNodes) {
+  const issues = []
+  orderedNodes.forEach((node, index) => {
+    const prev = orderedNodes[index - 1]
+    if (!prev || !node.date || !prev.date) return
+    if (diffDays(prev.date, node.date) < 0) {
+      issues.push({ nodeId: node.id || node.key, text: `「${node.title}」排在了「${prev.title}」前面` })
+    }
+  })
+  return issues
+}

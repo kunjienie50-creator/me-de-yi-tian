@@ -2290,3 +2290,1010 @@ body.no-scroll {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   首页日历 / 功能入口 / 目标配色 / 小猫陪伴
+   颜色来自 src/lib/colors.js 的内联变量：--dot / --soft / --strong
+   ============================================================ */
+
+/* ---- 小猫：点击回应，使用本地精灵动画 ---- */
+.cat-button {
+  display: block;
+  margin: 0 auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- 一周日历 ---- */
+.week-strip {
+  margin: 6px 0 14px;
+  padding: 12px 10px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+}
+
+.week-strip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+.week-strip__legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+
+.week-strip__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--peach);
+  flex: 0 0 auto;
+}
+
+.week-strip__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 2px 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.week-day.is-today {
+  background: var(--accent-panel-gradient);
+  border-color: var(--line-strong);
+}
+
+.week-day__label {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.week-day.is-today .week-day__label {
+  color: var(--peach-deep);
+  font-weight: 600;
+}
+
+.week-day__num {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.week-day__cells {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  gap: 3px;
+  justify-content: center;
+  align-content: start;
+  min-height: 21px;
+  margin-top: 5px;
+}
+
+.week-cell {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--dot, #b9a79a);
+}
+
+/* 点亮过的方块留个空心，和未完成的实心区分开 */
+.week-cell.is-done {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--dot, #b9a79a);
+  opacity: 0.6;
+}
+
+.week-cell--more {
+  grid-column: 1 / -1;
+  width: auto;
+  height: auto;
+  font-size: 9.5px;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: none;
+  text-align: center;
+}
+
+.week-cell--empty {
+  background: var(--neutral-fill);
+}
+
+.week-day.is-heavy .week-day__num {
+  color: var(--peach-deep);
+}
+
+/* ---- 两个显眼入口 ---- */
+.home-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.home-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 14px 14px 13px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+}
+
+.home-action--timer {
+  background: var(--accent-panel-gradient);
+  border-color: var(--line-strong);
+}
+
+.home-action--night {
+  background: linear-gradient(150deg, var(--surface), var(--lav-soft));
+  border-color: var(--line-strong);
+}
+
+.home-action__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.home-action__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.home-action__hint {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* ---- 昨天没做完（自动出现，不是功能入口） ---- */
+.notice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 14px;
+  text-align: left;
+  background: var(--accent-panel-gradient);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.notice-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--peach-deep);
+}
+
+.notice-card__text {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.notice-card__cta {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--peach-deep);
+}
+
+/* ---- 任务行的目标归属 ---- */
+.task-row__stripe {
+  display: none;
+}
+
+.task-row.has-project .task-row__stripe {
+  display: block;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 3px;
+  min-height: 18px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--dot, #b9a79a);
+  opacity: 0.85;
+}
+
+.task-row__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--dot, #b9a79a);
+  vertical-align: middle;
+}
+
+.task-row__project {
+  color: var(--strong, var(--ink-soft));
+  font-weight: 600;
+}
+
+.task-row__sep {
+  opacity: 0.6;
+}
+
+/* ---- 目标卡上的色点 ---- */
+.goal-card__dot,
+.project-card__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--dot, #b9a79a);
+  vertical-align: middle;
+}
+
+.project-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* ---- 排期页：节点也用目标色 ---- */
+.sched-node__title::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--dot, #b9a79a);
+  vertical-align: middle;
+}
+
+/* ---- 日历点开某天的清单 ---- */
+.peek-list {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.peek-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.peek-list li:last-child {
+  border-bottom: 0;
+}
+
+.peek-list__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 3px;
+  background: var(--dot, #b9a79a);
+}
+
+.peek-list__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.peek-list__title {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.peek-list__meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.peek-list__flag {
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.peek-list li.is-done .peek-list__title {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+.cat-button:focus {
+  outline: none;
+}
+
+.cat-button:focus-visible {
+  outline: 2px solid rgba(255, 124, 183, 0.55);
+  outline-offset: 6px;
+  border-radius: 46px;
+}
+
+.week-day:focus {
+  outline: none;
+}
+
+.week-day:focus-visible {
+  outline: 2px solid rgba(255, 124, 183, 0.5);
+  outline-offset: 2px;
+}
+
+/* 键盘/读屏时保留一个轻量焦点环，鼠标点不显示黑框 */
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid rgba(255, 124, 183, 0.5);
+  outline-offset: 2px;
+}
+
+/* 计时浮条出现时，给底部多留一点空间，别压住最后一张卡片 */
+.app-bottom-space.has-tabs.has-timer {
+  height: 148px;
+}
+
+/* ---------- 广告语 ---------- */
+.slogan {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--peach-deep);
+  text-align: left;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.slogan::after {
+  content: ' ↻';
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+/* ---------- 首页事件箱入口 ---------- */
+.box-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--accent-panel-gradient);
+  box-shadow: var(--card-shadow);
+  text-align: left;
+  cursor: pointer;
+}
+
+.box-card__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--lav-soft);
+  font-size: 20px;
+  flex: none;
+}
+
+.box-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.box-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.box-card__hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.box-card__cta {
+  flex: none;
+  font-size: 12px;
+  color: var(--lav);
+}
+
+/* ---------- 事件箱页 ---------- */
+.box-add {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 16px;
+}
+
+.box-add .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.box-add .btn {
+  flex: none;
+}
+
+.box-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.box-item {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.box-item__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.box-item__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.box-item__meta {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.box-item__source {
+  color: var(--lav);
+}
+
+.box-item__source.is-gaveup {
+  color: var(--warn);
+}
+
+.box-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- 分类标签 ---------- */
+.tag-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.tag-picker__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.tag-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong, #ead9cd);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tag-chip.is-active {
+  border-color: var(--peach-deep);
+  background: var(--peach);
+  color: var(--on-accent);
+}
+
+.tag-chip--add {
+  border-style: dashed;
+  color: var(--ink-soft);
+}
+
+.tag-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tag-add .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-row__tag {
+  color: var(--ink-soft);
+}
+
+/* 睡前页深色主题里的「收进箱子」 */
+.link-btn--night {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--peach-deep);
+}
+
+/* ---------- 第四轮：漏停提示条 ---------- */
+.leak-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  background: var(--accent-panel-gradient);
+  border: 1px solid rgba(255, 124, 183, 0.28);
+}
+
+.leak-bar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.leak-bar__text strong {
+  color: var(--peach-deep);
+  font-size: 14px;
+}
+
+.leak-bar__actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---------- 第四轮：新建目标（一句话弹窗 + 清单 + 日历） ---------- */
+.loading-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+
+.loading-card p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.node-editor--seq li {
+  align-items: flex-start;
+}
+
+.node-editor__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.node-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-editor__row .input--num {
+  width: 72px;
+  flex: none;
+}
+
+.prio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.prio--high {
+  background: var(--accent-hover);
+  color: var(--peach-deep);
+}
+
+.prio--mid {
+  background: var(--lav-soft);
+  color: var(--lav);
+}
+
+.prio--low {
+  background: var(--neutral-fill);
+  color: var(--ink-soft);
+}
+
+.chips--tiny {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.chip--tiny {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+.ddl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ddl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px dashed rgba(255, 124, 183, 0.5);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ddl-chip__hint {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.cal {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--card-shadow);
+  touch-action: pan-y;
+}
+
+.cal__weekhead,
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cal__weekhead {
+  margin-bottom: 6px;
+}
+
+.cal__weekhead-cell {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.cal__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 78px;
+  padding: 5px 4px 6px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--surface-soft);
+  text-align: left;
+  overflow: hidden;
+}
+
+.cal__cell--pad {
+  background: transparent;
+  min-height: 0;
+}
+
+.cal__cell.is-today {
+  border-color: rgba(255, 124, 183, 0.55);
+  background: var(--accent-hover);
+}
+
+.cal__cell.is-ddl {
+  border-color: rgba(143, 134, 216, 0.6);
+  background: var(--lav-soft);
+}
+
+.cal__date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cal__pin {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 10px;
+}
+
+.cal__load {
+  font-size: 9px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+.cal__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.cal-block {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  font-size: 9px;
+  line-height: 1.15;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.cal-block--high {
+  background: var(--accent-hover);
+  color: var(--peach-deep);
+}
+
+.cal-block--mid {
+  background: var(--lav-soft);
+  color: var(--lav);
+}
+
+.cal-block--low {
+  background: var(--neutral-fill);
+  color: var(--ink-soft);
+}
+
+.cal-block.is-selected {
+  outline: 2px solid rgba(255, 124, 183, 0.7);
+  outline-offset: 1px;
+}
+
+.cal-block.is-dragging {
+  opacity: 0.55;
+}
+
+.cal-block__seq {
+  font-weight: 700;
+  flex: none;
+}
+
+.cal-block__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sched-node__seq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent-hover);
+  color: var(--peach-deep);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+/* 日历里的方块只放序号，完整的名字在图例里 */
+.cal-block {
+  justify-content: center;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cal-pick {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-hover);
+  color: var(--peach-deep);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-legend {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.cal-legend__seq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+.cal-legend__seq--high {
+  background: var(--accent-hover);
+  color: var(--peach-deep);
+}
+
+.cal-legend__seq--mid {
+  background: var(--lav-soft);
+  color: var(--lav);
+}
+
+.cal-legend__seq--low {
+  background: var(--neutral-fill);
+  color: var(--ink-soft);
+}
+
+.cal-legend__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-legend__date {
+  color: var(--ink-soft);
+  font-size: 12px;
+  flex: none;
+}
+
+.cal-legend__est {
+  color: var(--ink-soft);
+  font-size: 12px;
+  flex: none;
+  min-width: 52px;
+  text-align: right;
+}
+
+.sched-node__meta .prio {
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+/* 模型/离线规则的来源标记 */
+.ai-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -4px 0 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.ai-hint--tight {
+  margin: 6px 0 0;
+}
+
+.ai-hint__text {
+  flex: 1;
+  color: var(--ink-soft);
+}
+
+.ai-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  background: var(--neutral-fill);
+  white-space: nowrap;
+}
+
+.ai-badge.is-model {
+  color: var(--mint);
+  background: var(--mint-soft);
+}
+
+.note-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}

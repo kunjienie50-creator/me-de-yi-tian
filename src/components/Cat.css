@@ -41,3 +41,4 @@
 }
 .cat--task-reaction { display: none; width: 64px; }
 .cat--task-reaction[data-playing='true'] { display: block; }
+.cat--settings { width: 100px; margin: 12px auto 0; }
