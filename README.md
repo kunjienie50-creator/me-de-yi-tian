@@ -4,6 +4,13 @@
 
 > **这是可路演的原型，不是成品。** 没有登录、没有后端、没有数据库；AI 部分是**演示模式**——拆解与重启草案都由本地规则和预置样例生成，不会调用任何真实模型。数据只存在当前浏览器里。
 
+## 直接打开（不用装环境）
+
+- 在线版：**https://kunjienie50-creator.github.io/me-de-yi-tian/**
+- 仓库：https://github.com/kunjienie50-creator/me-de-yi-tian
+
+手机打开后用浏览器菜单「添加到主屏幕」，观感更接近 App。每台设备的数据独立存在各自的浏览器里，互不同步。
+
 ## 技术栈
 
 - Vite 7 + React 19（JavaScript，非 TypeScript）
@@ -104,6 +111,28 @@ src/views/
 6. **睡前**：逐条点「点亮了 / 没做完 / 不想说」→ 保存 → 看收尾动画 → 进回顾。
 7. **回顾**：切到昨天看降级说明；点「分享这一天」看固定样片，打开照片开关（会出现二次确认）。
 8. **设置**：看本地数据体积 → 导出 JSON → 最后再点「重置演示数据」回到起点。
+
+## 更新在线版
+
+在线版是 `gh-pages` 分支上的静态构建产物，`main` 只放源码。改完代码后重新发布：
+
+```bash
+npm run build
+rm -rf ../pages-build && mkdir ../pages-build && cp -r dist/. ../pages-build/
+cd ../pages-build && git init -b gh-pages && git add -A \
+  && git commit -m "deploy" \
+  && git remote add origin https://github.com/kunjienie50-creator/me-de-yi-tian.git \
+  && git push -f origin gh-pages
+```
+
+推送后 1–2 分钟生效，GitHub 的 Actions 页面能看到这次 Pages 构建的状态。
+
+## 一起改这个项目
+
+- **只看/只跑**：仓库已公开，直接 `git clone` 即可。
+- **要提交代码**：需要仓库管理员在 Settings → Collaborators 里邀请（Write 权限），否则只能 fork。
+- 本地开发不要提交 `node_modules`、`dist`、`.npm-cache`、`.dsh-check`，已在 `.gitignore` 里排除。
+- 这个仓库目前**没有 LICENSE**：公开可见，但严格来说未授予他人复制、改造、再发布的许可。要开源给队友/外部复用，建议加一个（MIT 最省事）。
 
 ## 已知限制
 
