@@ -14,14 +14,14 @@ import {
 } from '../lib/restart.js'
 import { useStore } from '../store.jsx'
 
-const STEPS = ['intro', 'ask', 'draft', 'done']
+const STEPS = ['ask', 'draft', 'done']
 
 export default function Restart({ navigate }) {
   const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const nodes = useMemo(() => collectRestartNodes(state), [state.tasks, today])
 
-  const [step, setStep] = useState('intro')
+  const [step, setStep] = useState('ask')
   const [answers, setAnswers] = useState({ reason: null, time: null, goal: null })
   const [draft, setDraft] = useState(null)
   const [dropped, setDropped] = useState([])
@@ -70,14 +70,14 @@ export default function Restart({ navigate }) {
       <main className="screen">
         <header className="topbar">
           <div>
-            <p className="topbar__date">温和重启</p>
+            <p className="topbar__date">昨天没做完的</p>
             <h1 className="topbar__title">今天没有需要顺延的节点</h1>
           </div>
           <button type="button" className="icon-btn" onClick={() => navigate('home')} aria-label="关闭">
             ✕
           </button>
         </header>
-        <Empty title="干干净净的一天" hint="今天之前没有留下未完成的节点，不需要重启。" />
+        <Empty title="干干净净的一天" hint="今天之前没有留下未完成的节点，这里就不打扰你了。" />
         <button type="button" className="btn btn--ghost btn--block" onClick={() => navigate('home')}>
           回到今天
         </button>
@@ -89,8 +89,8 @@ export default function Restart({ navigate }) {
     <main className="screen">
       <header className="topbar">
         <div>
-          <p className="topbar__date">第 {STEPS.indexOf(step) + 1} / 4 步</p>
-          <h1 className="topbar__title">温和重启</h1>
+          <p className="topbar__date">第 {STEPS.indexOf(step) + 1} / {STEPS.length} 步</p>
+          <h1 className="topbar__title">昨天没做完的</h1>
         </div>
         <button
           type="button"
@@ -105,13 +105,13 @@ export default function Restart({ navigate }) {
         </button>
       </header>
 
-      {step === 'intro' ? (
+      {step === 'ask' ? (
         <div className="stack">
           <div className="restart-hero">
-            <Cat mood="idle" className="cat--restart" />
+            <Cat mood="idle" skin={state.settings.catSkin || 'orange'} className="cat--restart" />
             <p className="restart-hero__text">
-              有 <strong>{nodes.length}</strong> 个节点停在今天之前。我不会自己把它们往后挪，也不会替你改截止日。
-              先回答三个小问题，我再给一份草案给你挑。
+              有 <strong>{nodes.length}</strong> 件停在今天之前。我不会自己把它们往后挪，也不会替你改截止日。
+              先回答两三个小问题，我再给一份草案给你挑。
             </p>
           </div>
 
@@ -130,24 +130,6 @@ export default function Restart({ navigate }) {
             })}
           </ul>
 
-          <div className="notice">
-            <p>草案只是建议：每个未完成节点都会明确出现在「建议安排 / 建议取消 / 需要你决定」里，不会漏项。</p>
-            <button type="button" className="link-btn" onClick={() => setSnapshotOpen((prev) => !prev)}>
-              {snapshotOpen ? '收起' : '看看会发给模型的快照'}
-            </button>
-            {snapshot ? (
-              <pre className="snapshot">{JSON.stringify(snapshot, null, 2).slice(0, 1200)}</pre>
-            ) : null}
-          </div>
-
-          <button type="button" className="btn btn--primary btn--block" onClick={() => setStep('ask')}>
-            开始回答
-          </button>
-        </div>
-      ) : null}
-
-      {step === 'ask' ? (
-        <div className="stack">
           <Field label="昨天为什么没做完？（可跳过）" hint="选什么都不会被评价，只是帮我判断该往后挪还是拆细。">
             <div className="chips">
               {REASON_OPTIONS.map((option) => (
@@ -195,14 +177,27 @@ export default function Restart({ navigate }) {
 
           <p className="hint hint--left">不回答也可以，我会按「还不确定」处理，不推断成失败。</p>
 
-          <div className="btn-row">
-            <button type="button" className="btn btn--ghost" onClick={() => setStep('intro')}>
-              上一步
+          <div className="notice">
+            <p>草案只是建议：每件未完成的事都会明确出现在「建议安排 / 建议取消 / 需要你决定」里，不会漏项。</p>
+            <button type="button" className="link-btn" onClick={() => setSnapshotOpen((prev) => !prev)}>
+              {snapshotOpen ? '收起' : '看看会发给模型的快照'}
             </button>
-            <button type="button" className="btn btn--primary" onClick={generate}>
-              生成草案
-            </button>
+            {snapshot ? <pre className="snapshot">{JSON.stringify(snapshot, null, 2).slice(0, 1200)}</pre> : null}
           </div>
+
+          <button type="button" className="btn btn--primary btn--block" onClick={generate}>
+            生成草案
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--block"
+            onClick={() => {
+              dispatch({ type: 'dismiss_restart' })
+              navigate('home')
+            }}
+          >
+            今天先不管这些
+          </button>
         </div>
       ) : null}
 
@@ -361,8 +356,8 @@ export default function Restart({ navigate }) {
       {step === 'done' ? (
         <div className="stack">
           <div className="restart-hero">
-            <Cat mood="happy" className="cat--restart" />
-            <h2 className="restart-hero__title">重启好了</h2>
+            <Cat mood="happy" skin={state.settings.catSkin || 'orange'} className="cat--restart" />
+            <h2 className="restart-hero__title">安排好了</h2>
             <p className="restart-hero__text">
               只应用了你勾选的调整。截止日、已锁定节点、没出现在草案里的节点都保持原样。
             </p>

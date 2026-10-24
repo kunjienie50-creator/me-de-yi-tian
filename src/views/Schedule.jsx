@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Badge, DemoTag, Empty, Pips } from '../components/ui.jsx'
+import { colorVars, projectColorOf } from '../lib/colors.js'
 import { addDays, dayRange, diffDays, fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import { clampDate, detectConflicts, earliestDate } from '../lib/schedule.js'
 import { projectNodes, projectProgress, useStore } from '../store.jsx'
@@ -8,6 +9,7 @@ export default function Schedule({ projectId, navigate }) {
   const { state, dispatch, notify } = useStore()
   const project = state.projects.find((item) => item.id === projectId)
   const today = todayKey()
+  const accent = projectColorOf(state, projectId)
 
   const nodes = useMemo(() => projectNodes(state, projectId).filter((node) => node.status !== 'cancelled'), [state.tasks, projectId])
   const progress = projectProgress(state, projectId)
@@ -112,7 +114,7 @@ export default function Schedule({ projectId, navigate }) {
         </div>
       </div>
 
-      <ul className="schedule">
+      <ul className="schedule" style={colorVars(accent)}>
         {grouped.map(({ date, items }) => (
           <li key={date} className={`schedule__day ${date === today ? 'is-today' : ''}`}>
             <div className="schedule__dayhead">

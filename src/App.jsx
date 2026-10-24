@@ -21,7 +21,7 @@ const TABS = [
 const FULL_VIEWS = ['bedtime', 'restart', 'settings']
 
 function Shell() {
-  const { state } = useStore()
+  const { state, now } = useStore()
   const [route, setRoute] = useState({ view: 'home', params: {} })
   const scrollRef = useRef(null)
 
@@ -50,14 +50,14 @@ function Shell() {
     <div className={`app-shell ${route.view === 'bedtime' ? 'is-night' : ''}`}>
       <div className="app-scroll" ref={scrollRef} key={route.view}>
         {page}
-        <div className={`app-bottom-space ${hideTabs ? '' : 'has-tabs'}`} aria-hidden="true" />
+        <div className={`app-bottom-space ${hideTabs ? '' : 'has-tabs'} ${state.timer ? 'has-timer' : ''}`} aria-hidden="true" />
       </div>
 
       {state.timer && route.view !== 'timer' ? (
         <button type="button" className="timer-float" onClick={() => navigate('timer')}>
           <span className="timer-float__dot" aria-hidden="true" />
           <span className="timer-float__label">{state.timer.label}</span>
-          <span className="timer-float__clock">{fmtStopwatch(Date.now() - new Date(state.timer.startedAt).getTime())}</span>
+          <span className="timer-float__clock">{fmtStopwatch(now - new Date(state.timer.startedAt).getTime())}</span>
         </button>
       ) : null}
 

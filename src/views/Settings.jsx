@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Badge, DemoTag, Field, SectionTitle } from '../components/ui.jsx'
+import Cat, { CAT_SKINS } from '../components/Cat.jsx'
 import { fmtBytes, storageBytes } from '../lib/storage.js'
 import { countImages, clearImages } from '../lib/images.js'
 import { useStore } from '../store.jsx'
@@ -44,6 +45,28 @@ export default function Settings({ navigate }) {
           <h1 className="topbar__title">设置与说明</h1>
         </div>
       </header>
+
+      <section className="panel">
+        <SectionTitle>小猫形象</SectionTitle>
+        <p className="hint hint--left">现在是占位形象，之后换成你自己画的就行（见 Cat.jsx 顶部说明）。</p>
+        <div className="skin-row">
+          {CAT_SKINS.map((skin) => (
+            <button
+              key={skin.id}
+              type="button"
+              className={`skin-card ${(state.settings.catSkin || 'orange') === skin.id ? 'is-active' : ''}`}
+              onClick={() => {
+                dispatch({ type: 'update_settings', patch: { catSkin: skin.id } })
+                notify(`换成「${skin.name}」了`, 'ok')
+              }}
+              aria-pressed={(state.settings.catSkin || 'orange') === skin.id}
+            >
+              <Cat mood="idle" skin={skin.id} className="cat--skin" />
+              <span className="skin-card__name">{skin.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="panel">
         <SectionTitle>睡前时间</SectionTitle>

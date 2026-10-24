@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Badge, DemoTag, Empty, Field, FullScreen, Pips } from '../components/ui.jsx'
+import { colorVars, projectColorOf } from '../lib/colors.js'
 import { GRANULARITY_LABEL, decompose, fakeLatency, validateDraft } from '../lib/decompose.js'
 import { addDays, diffDays, fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import { detectConflicts, planEven } from '../lib/schedule.js'
@@ -34,10 +35,13 @@ export default function Goals({ navigate }) {
             const nodes = projectNodes(state, project.id)
             const conflicts = detectConflicts(nodes, project.ddl, todayKey())
             return (
-              <li key={project.id} className="project-card">
+              <li key={project.id} className="project-card" style={colorVars(projectColorOf(state, project.id))}>
                 <button type="button" className="project-card__main" onClick={() => navigate('schedule', { projectId: project.id })}>
                   <div className="project-card__head">
-                    <h2>{project.title}</h2>
+                    <h2>
+                      <span className="project-card__dot" aria-hidden="true" />
+                      {project.title}
+                    </h2>
                     <Badge tone="soft">{project.category}</Badge>
                   </div>
                   <Pips done={progress.done} total={progress.total} />

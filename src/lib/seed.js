@@ -44,7 +44,7 @@ export function createSeedState() {
   return {
     version: SCHEMA_VERSION,
     seededAt: new Date().toISOString(),
-    settings: { sleepTime: '23:30', onboarded: false },
+    settings: { sleepTime: '23:30', onboarded: false, catSkin: 'orange' },
     projects: [
       {
         id: 'p1',

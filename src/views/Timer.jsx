@@ -5,12 +5,13 @@ import { compressImage, deleteImage, getImageUrl, putImage } from '../lib/images
 import { uid, useStore } from '../store.jsx'
 
 export default function Timer() {
-  const { state, dispatch, notify } = useStore()
+  const { state, dispatch, notify, now } = useStore()
   const [stopOpen, setStopOpen] = useState(false)
   const [pickOpen, setPickOpen] = useState(false)
   const timer = state.timer
 
-  const elapsed = timer ? Date.now() - new Date(timer.startedAt).getTime() : 0
+  // now 来自 store 里每秒更新的共享时钟，界面才会真的走字
+  const elapsed = timer ? now - new Date(timer.startedAt).getTime() : 0
   const longRun = timer && elapsed > 8 * 3600 * 1000
 
   const [makeup, setMakeup] = useState('')

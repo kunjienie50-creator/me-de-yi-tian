@@ -8,7 +8,7 @@ export function uid(prefix = 'id') {
 }
 
 const defaults = () => ({
-  settings: { sleepTime: '23:30', onboarded: false },
+  settings: { sleepTime: '23:30', onboarded: false, catSkin: 'orange' },
   projects: [],
   tasks: [],
   timer: null,
@@ -179,6 +179,8 @@ export function StoreProvider({ children }) {
   const [toast, setToast] = useState(null)
   const timerRef = useRef(null)
   const [, forceTick] = useState(0)
+  // 共享时钟：放进 context，任何用到它的组件都会每秒重渲染（计时页/浮条靠这个走字）
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     const result = saveState(state)
@@ -187,7 +189,10 @@ export function StoreProvider({ children }) {
 
   // 计时/跨天都需要界面自己走时
   useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 1000)
+    const id = setInterval(() => {
+      setNow(Date.now())
+      forceTick((n) => n + 1)
+    }, 1000)
     timerRef.current = id
     return () => clearInterval(id)
   }, [])
@@ -202,13 +207,14 @@ export function StoreProvider({ children }) {
     () => ({
       state,
       dispatch,
+      now,
       notify: (message, type = 'info') => setToast({ message, type }),
       resetAll: () => {
         clearState()
         dispatch({ type: 'reset' })
       },
     }),
-    [state],
+    [state, now],
   )
 
   return (
