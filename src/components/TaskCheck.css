@@ -1,3 +1,14 @@
+/* 点亮事勾选按钮 —— 44×44 的伪 3D 素材按钮
+ * 结构：button.task-check
+ *         > .task-check__tilt   指针跟随的 rotateX/rotateY（真 3D 舞台）
+ *           > .task-check__spin 点击时的 -720deg 旋转 + tumble + blur
+ *             > .task-check__glyph  携带 --check-art（素材 url）/ data-art（check|cross）
+ *               > 5 × .task-check__layer  mask 剪影的阶梯挤出
+ *               > .task-check__paint      素材本体（translateZ 前置）
+ * 素材在 256 画布内基本居中，但「勾」扁宽（约 231×165）、「叉」近正方（约 228×229），
+ * 所以用 --art-inset 给两者不同的出血量做视觉配平，几何全部从 36px 内容盒派生。
+ */
+
 button.task-row__check.task-check {
   position: relative;
   flex: 0 0 44px;
@@ -12,31 +23,58 @@ button.task-row__check.task-check {
   border-radius: 12px;
   background: transparent;
   box-shadow: none;
-  perspective: 420px;
+  cursor: pointer;
+  /* 340px 比旧的 420px 更紧，5 层挤出才有可读纵深 */
+  perspective: 340px;
+  transform-style: preserve-3d;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 button.task-row__check.task-check.is-on { background: transparent; border: 0; transform: none; animation: none; }
+
+/* 接触阴影：贴地的一层椭圆，压在 3D 舞台下方，随 hover / active 呼吸 */
 .task-check::before {
   content: '';
   position: absolute;
-  inset: 28px 7px 1px;
+  inset: 27px 6px 1px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, #74498735, transparent 70%);
-  transform: scaleY(.6);
-  transition: opacity 180ms ease, scale 220ms ease;
+  background: radial-gradient(ellipse at 50% 50%, #6a3a7a59, #6a3a7a1f 58%, transparent 78%);
+  opacity: .85;
+  filter: blur(.5px);
+  transform: translateZ(-14px) scaleY(.62);
+  transition: opacity 200ms ease, transform 240ms ease, scale 220ms ease, background 320ms ease;
   pointer-events: none;
 }
+.task-check.is-on::before { background: radial-gradient(ellipse at 50% 50%, #9b3fa14d, #9b3fa11a 58%, transparent 78%); }
+
+/* 3D 舞台：指针倾斜（--check-tilt-x/y 由 requestAnimationFrame 写入） */
 .task-check__tilt {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
   transform: rotateX(calc(-6deg + var(--check-tilt-x, 0deg))) rotateY(calc(7deg + var(--check-tilt-y, 0deg)));
-  transition: transform 180ms ease, translate 180ms ease, scale 180ms ease;
+  transition: transform 180ms ease, translate 200ms ease, scale 200ms ease;
   pointer-events: none;
 }
-.task-check__spin, .task-check__glyph {
+
+/* 完成态柔光：z=-11px 的光晕面，被挤出层和素材挡住中心，只在边缘溢出成一圈辉光 */
+.task-check__tilt::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #f0c8f08c, #cf8fdb3d 46%, #a25cb200 73%);
+  opacity: 0;
+  transform: translateZ(-11px) scale(.82);
+  transition: opacity 260ms ease, transform 340ms ease;
+  pointer-events: none;
+}
+.task-check.is-on .task-check__tilt::before { opacity: 1; transform: translateZ(-9px) scale(1); }
+
+/* 旋转载体：每次点击靠 key 重挂一次，动画从头播放 */
+.task-check__spin {
   position: relative;
   display: block;
   width: 100%;
@@ -44,17 +82,44 @@ button.task-row__check.task-check.is-on { background: transparent; border: 0; tr
   transform-style: preserve-3d;
   pointer-events: none;
 }
-.task-check__glyph::before, .task-check__glyph::after {
-  content: '';
+
+/* 素材容器：inset 由 --art-inset 决定，「勾」出血 2px、「叉」回收 0.5px，配平两者体量 */
+.task-check__glyph {
+  position: absolute;
+  inset: var(--art-inset, 0px);
+  display: block;
+  transform-style: preserve-3d;
+  /* 挤出步长：每层向右 0.8px / 向下 0.95px（主光在左上）/ 后退 2.4px，5 层共 (3.2, 3.8, -9.6) */
+  --depth-x: 1.15px;
+  --depth-y: 1.35px;
+  --depth-z: -2.4px;
+  pointer-events: none;
+}
+.task-check__glyph[data-art='check'] { --art-inset: -2px; }
+.task-check__glyph[data-art='cross'] { --art-inset: 0px; }
+
+/* 阶梯挤出：同一张素材的 alpha 剪影，逐层偏移变深、变透明 */
+.task-check__layer {
   position: absolute;
   inset: 0;
-  background: #794b86;
+  background: var(--layer-ink, #6f4283);
+  opacity: var(--layer-alpha, .4);
   -webkit-mask: var(--check-art) center / contain no-repeat;
   mask: var(--check-art) center / contain no-repeat;
-  transform: translate(1px, 2px) translateZ(0);
-  opacity: .55;
+  transform: translate3d(
+    calc(var(--depth) * var(--depth-x)),
+    calc(var(--depth) * var(--depth-y)),
+    calc(var(--depth) * var(--depth-z))
+  );
+  pointer-events: none;
 }
-.task-check__glyph::after { transform: translate(2px, 4px) translateZ(-2px); opacity: .22; }
+.task-check__layer[data-depth='0'] { --layer-ink: #7f4d94; --layer-alpha: .46; }
+.task-check__layer[data-depth='1'] { --layer-ink: #714487; --layer-alpha: .40; }
+.task-check__layer[data-depth='2'] { --layer-ink: #633976; --layer-alpha: .34; }
+.task-check__layer[data-depth='3'] { --layer-ink: #553066; --layer-alpha: .28; }
+.task-check__layer[data-depth='4'] { --layer-ink: #472853; --layer-alpha: .22; }
+
+/* 素材本体：前置 5px，所以挤出层在它下方露边，形成可见的厚度 */
 .task-check__paint {
   position: relative;
   display: block;
@@ -62,26 +127,36 @@ button.task-row__check.task-check.is-on { background: transparent; border: 0; tr
   height: 100%;
   object-fit: contain;
   transform: translateZ(5px);
-  filter: drop-shadow(0 1px 1px #a3599a30);
+  filter: drop-shadow(0 1px 1px #a3599a2e);
   user-select: none;
+  -webkit-user-drag: none;
   pointer-events: none;
 }
+.task-check.is-on .task-check__paint { filter: drop-shadow(0 1px 2px #78348047) drop-shadow(0 0 5px #e9b0f080); }
+
 .task-check__fallback { display: none; }
+
+/* 交互态：位移与缩放都落在 3D 舞台上，不打断 preserve-3d 链 */
 .task-check:focus-visible .task-check__tilt { translate: 0 -2px; scale: 1.08; }
-.task-check:active .task-check__tilt { translate: 0 2px; scale: .9; }
-.task-check:active::before { opacity: .5; scale: .8; }
 @media (hover: hover) and (pointer: fine) {
   .task-check:hover .task-check__tilt { translate: 0 -2px; scale: 1.1; }
-  .task-check:hover::before { scale: 1.14; opacity: .8; }
-  .task-check:active .task-check__tilt { translate: 0 2px; scale: .9; }
+  .task-check:hover::before { opacity: 1; scale: 1.14; }
 }
-.task-check__spin[data-spinning='true'] { animation: task-check-spin 480ms cubic-bezier(.22,.62,.3,1) both; }
+.task-check:active .task-check__tilt { translate: 0 2px; scale: .92; }
+.task-check:active::before { opacity: .55; scale: .8; }
+
+/* 点击：逆时针 -720deg，先虚化后落定，中途 rotateY 翻面 */
+.task-check__spin[data-spinning='true'] { animation: task-check-spin 560ms cubic-bezier(.2, .62, .26, 1) both; }
 @keyframes task-check-spin {
-  0% { transform: rotateZ(0deg) scale(1); filter: blur(0); opacity: 1; }
-  32% { transform: rotateZ(-210deg) scale(.73); filter: blur(2.6px); opacity: .55; }
-  72% { transform: rotateZ(-610deg) scale(1.12); filter: blur(.5px); opacity: .95; }
-  100% { transform: rotateZ(-720deg) scale(1); filter: blur(0); opacity: 1; }
+  0%   { transform: rotateZ(0deg) rotateY(-32deg) scale(.92); filter: blur(1.6px); opacity: .32; }
+  22%  { transform: rotateZ(-150deg) rotateY(-96deg) scale(.7); filter: blur(2.6px); opacity: .5; }
+  44%  { transform: rotateZ(-330deg) rotateY(-56deg) scale(.86); filter: blur(1.9px); opacity: .74; }
+  68%  { transform: rotateZ(-540deg) rotateY(10deg) scale(1.06); filter: blur(.7px); opacity: 1; }
+  86%  { transform: rotateZ(-668deg) rotateY(5deg) scale(1.03); filter: blur(.2px); opacity: 1; }
+  100% { transform: rotateZ(-720deg) rotateY(0deg) scale(1); filter: blur(0); opacity: 1; }
 }
+
+/* portal 里的一次性特效层：光晕环 + 旧素材回响 + 18 颗粒子 */
 .task-check-fx {
   position: fixed;
   z-index: 110;
@@ -89,38 +164,60 @@ button.task-row__check.task-check.is-on { background: transparent; border: 0; tr
   width: 44px;
   height: 44px;
   pointer-events: none;
-  perspective: 420px;
+  perspective: 340px;
   isolation: isolate;
 }
-.task-check-fx__echo { position: absolute; inset: 4px; animation: task-check-echo 480ms ease-out both; }
+.task-check-fx__aura {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 1.5px solid #eab6eecc;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #d79fd54d, inset 0 0 8px #f3d2f366;
+  opacity: 0;
+  animation: task-check-aura 560ms cubic-bezier(.16, .68, .28, 1) both;
+}
+@keyframes task-check-aura {
+  0%   { transform: scale(.32); opacity: 0; filter: blur(.5px); }
+  14%  { opacity: .92; }
+  58%  { opacity: .42; filter: blur(.9px); }
+  100% { transform: scale(2.3); opacity: 0; filter: blur(3px); }
+}
+.task-check-fx__echo { position: absolute; inset: 4px; animation: task-check-echo 540ms cubic-bezier(.18, .6, .3, 1) both; }
 @keyframes task-check-echo {
-  0% { transform: rotateZ(0deg) scale(1); filter: blur(0); opacity: .85; }
-  35% { transform: rotateZ(-240deg) scale(.8); filter: blur(2.5px); opacity: .62; }
-  75% { transform: rotateZ(-610deg) scale(1.15); filter: blur(1px); opacity: .3; }
-  100% { transform: rotateZ(-720deg) scale(1.2); filter: blur(3px); opacity: 0; }
+  0%   { transform: rotateZ(0deg) rotateY(0deg) scale(1); filter: blur(0); opacity: .92; }
+  34%  { transform: rotateZ(-252deg) rotateY(-82deg) scale(.76); filter: blur(2.5px); opacity: .58; }
+  70%  { transform: rotateZ(-600deg) rotateY(-20deg) scale(1.14); filter: blur(1.2px); opacity: .28; }
+  100% { transform: rotateZ(-720deg) rotateY(0deg) scale(1.26) translate3d(0, -3px, 0); filter: blur(3.2px); opacity: 0; }
 }
 .task-check-fx__spark {
   position: absolute;
   left: calc(50% - var(--spark-size) / 2);
   top: calc(50% - var(--spark-size) / 2);
   width: var(--spark-size);
-  height: calc(var(--spark-size) * 1.45);
-  background: #d39cd0;
+  height: calc(var(--spark-size) * 1.5);
   border-radius: 1px;
+  background: linear-gradient(180deg, #f7e4f7, #d79bd7);
   opacity: 0;
-  animation: task-check-scatter 600ms cubic-bezier(.12,.64,.28,1) both;
+  animation: task-check-scatter 620ms cubic-bezier(.12, .62, .26, 1) both;
   animation-delay: var(--spark-delay);
 }
-.task-check-fx__spark--1 { background: #9e6fae; }
-.task-check-fx__spark--2 { background: #f2cae4; border-radius: 50%; }
+.task-check-fx__spark--1 { background: linear-gradient(180deg, #c9a0d6, #8f5fa2); }
+.task-check-fx__spark--2 { background: radial-gradient(circle, #fdeefb, #f0c3e8); border-radius: 50%; }
 @keyframes task-check-scatter {
-  0% { transform: translate(0, 0) rotate(0deg) scale(.35); opacity: 0; filter: blur(0); }
-  12% { opacity: .85; }
-  70% { opacity: .5; filter: blur(.2px); }
-  100% { transform: translate(var(--spark-x), var(--spark-y)) rotate(var(--spark-turn)) scale(.1); opacity: 0; filter: blur(2.2px); }
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(.3); opacity: 0; filter: blur(0); }
+  12%  { opacity: .92; }
+  46%  { transform: translate3d(calc(var(--spark-x) * .62), calc(var(--spark-y) * .62), 6px) rotate(calc(var(--spark-turn) * .55)) scale(1); filter: blur(.2px); }
+  74%  { opacity: .55; }
+  100% { transform: translate3d(var(--spark-x), var(--spark-y), -4px) rotate(var(--spark-turn)) scale(.12); opacity: 0; filter: blur(2.4px); }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .task-check__tilt { transform: none; transition: none; }
+  .task-check__tilt::before { transition: none; }
   .task-check__spin[data-spinning='true'] { animation: none; }
   .task-check-fx { display: none; }
   .task-check:hover .task-check__tilt, .task-check:active .task-check__tilt { translate: none; scale: 1; }
