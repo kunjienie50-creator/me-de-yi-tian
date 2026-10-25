@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { clearState, loadState, saveState } from './lib/storage.js'
+import { backupState, clearState, loadState, saveState } from './lib/storage.js'
 import { SCHEMA_VERSION, createSeedState } from './lib/seed.js'
-import { diffDays, toKey, todayKey } from './lib/dates.js'
+import { addDays, diffDays, toKey, todayKey } from './lib/dates.js'
 import { guessTagId } from './lib/tags.js'
 import { appendSample, forgetMemory, makeSample } from './lib/memory.js'
 import { applyTheme } from './lib/theme.js'
@@ -25,19 +25,65 @@ const defaults = () => ({
   undo: [],
 })
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function safeDate(value, fallback) {
+  return typeof value === 'string' && DATE_RE.test(value) ? value : fallback
+}
+
+function list(value) {
+  return Array.isArray(value) ? value : []
+}
+
+/**
+ * 把读到的数据收拾成「界面绝对能渲染」的形状。
+ * 这里宁可不聪明：缺字段就补默认值，补不了就退回演示数据（但会先备份原文）。
+ */
 function initState() {
-  const saved = loadState()
+  const today = todayKey()
+  try {
+    return normalize(loadState() || createSeedState(), today)
+  } catch (error) {
+    console.error('[store] 本地数据无法使用，已备份后重置', error)
+    backupState()
+    return createSeedState()
+  }
+}
+
+function normalize(saved, today) {
   if (!saved) return createSeedState()
-  if (saved.version !== SCHEMA_VERSION) return createSeedState()
+  if (saved.version !== SCHEMA_VERSION) {
+    // 结构不兼容：先留一份原文，再换种子，避免「一打开记录全没了」
+    backupState()
+    return createSeedState()
+  }
   const merged = { ...defaults(), ...saved, settings: { ...defaults().settings, ...saved.settings }, restart: { ...defaults().restart, ...saved.restart } }
   delete merged.settings.appearance
   merged.settings.catSkin = 'custom'
   // 老数据没有分类 id，用标题补一个默认分类，别让界面空着
-  merged.tasks = (merged.tasks || []).map((task) => ({ tag: guessTagId(task.title), ...task }))
-  merged.projects = (merged.projects || []).map((project) => ({ tag: guessTagId(project.title), ...project }))
-  merged.box = merged.box || []
-  merged.customTags = merged.customTags || []
+  merged.tasks = list(merged.tasks).map((task) => ({
+    tag: guessTagId(task.title),
+    ...task,
+    // 日期坏了/缺了会让首页白屏，这里统一兜成今天
+    date: safeDate(task.date, today),
+  }))
+  merged.projects = list(merged.projects).map((project) => ({ tag: guessTagId(project.title), ...project }))
+  merged.sessions = list(merged.sessions)
+  merged.settlements = list(merged.settlements)
+  merged.memorials = list(merged.memorials)
+  merged.undo = list(merged.undo)
+  merged.box = list(merged.box)
+  merged.customTags = list(merged.customTags)
   merged.memory = merged.memory && Array.isArray(merged.memory.samples) ? merged.memory : { samples: [] }
+  // 项目没有截止日时，用「最晚的节点日期」或「今天 + 7 天」兜底，别让它一路传到 fmtRelative 炸掉
+  merged.projects = merged.projects.map((project) => {
+    if (safeDate(project.ddl, null)) return project
+    const dates = merged.tasks
+      .filter((task) => task.projectId === project.id)
+      .map((task) => task.date)
+      .sort()
+    return { ...project, ddl: dates.length ? dates[dates.length - 1] : addDays(today, 7) }
+  })
   // 老数据没有序号：按项目内日期先后补一个，保证「前驱在前」有依据
   const byProject = new Map()
   merged.tasks.forEach((task) => {

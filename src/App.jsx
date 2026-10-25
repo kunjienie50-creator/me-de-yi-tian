@@ -17,6 +17,7 @@ import NavPageTransition from './components/NavPageTransition.jsx'
 import { CatAnimationProvider } from './components/CatAnimationContext.jsx'
 import Box from './views/Box.jsx'
 import { fmtStopwatch } from './lib/dates.js'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { StoreProvider, useStore } from './store.jsx'
 
 const TABS = [
@@ -147,11 +148,13 @@ function Shell() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <CatAnimationProvider>
-        <Shell />
-      </CatAnimationProvider>
-      <CursorTrail />
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <CatAnimationProvider>
+          <Shell />
+        </CatAnimationProvider>
+        <CursorTrail />
+      </StoreProvider>
+    </ErrorBoundary>
   )
 }

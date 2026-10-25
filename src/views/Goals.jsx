@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import TagPicker from '../components/TagPicker.jsx'
 import { Badge, DemoTag, Empty, Field, FullScreen, Pips, Sheet } from '../components/ui.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
