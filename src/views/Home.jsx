@@ -135,9 +135,6 @@ export default function Home({ navigate }) {
           <h1 className="topbar__title home-brand__title">
             <BrandTitle />
           </h1>
-          <button type="button" className="slogan" onClick={() => setSloganIndex((index) => index + 1)} title="点一下换一句">
-            {slogan}
-          </button>
         </div>
         <button type="button" className="icon-btn" onClick={() => navigate('settings')} aria-label="设置">
           ⚙
@@ -169,9 +166,22 @@ export default function Home({ navigate }) {
       ) : null}
 
       <section className="stage stage--compact">
-        <p className="bubble" key={bubble}>
-          {bubble}
-        </p>
+        <button
+          type="button"
+          className="bubble"
+          key={`${slogan}-${bubble}`}
+          onClick={() => setSloganIndex((index) => index + 1)}
+          title="点一下换一句"
+        >
+          {line ? (
+            <span className="bubble__hint bubble__hint--line">{line}</span>
+          ) : (
+            <>
+              <span className="bubble__slogan">{slogan}</span>
+              <span className="bubble__hint">{bubble}</span>
+            </>
+          )}
+        </button>
         <button type="button" className="cat-button" onClick={pokeCat} aria-label="摸摸小猫">
           <Cat mood={mood} className="cat--home" particles />
         </button>
@@ -519,7 +529,14 @@ function AddTaskSheet({ open, onClose, onSave }) {
       />
       <div className="row-2">
         <Field label="哪天" htmlFor="add-date">
-          <input id="add-date" className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          <input
+            id="add-date"
+            className="input"
+            type="date"
+            value={date}
+            min={todayKey()}
+            onChange={(event) => setDate(event.target.value)}
+          />
         </Field>
         <Field label="预计多久（可选）" htmlFor="add-est">
           <input

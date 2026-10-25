@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import Cat from '../components/Cat.jsx'
 import { Badge, Empty, Field, SectionTitle } from '../components/ui.jsx'
 import { aiRestart } from '../lib/ai.js'
-import { fmtRelative, todayKey } from '../lib/dates.js'
+import { fmtMinutes, fmtRelative, todayKey } from '../lib/dates.js'
 import {
   GOAL_OPTIONS,
   REASON_OPTIONS,
@@ -10,6 +10,7 @@ import {
   buildRestartDraft,
   buildSnapshot,
   collectRestartNodes,
+  restartHistory,
   planAdoption,
   validateRestartDraft,
 } from '../lib/restart.js'
@@ -21,6 +22,32 @@ export default function Restart({ navigate }) {
   const { state, dispatch, notify } = useStore()
   const today = todayKey()
   const nodes = useMemo(() => collectRestartNodes(state), [state.tasks, today])
+  const tomorrow = useMemo(() => {
+    const [y, m, d] = today.split('-').map(Number)
+    const date = new Date(y, m - 1, d + 1)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  }, [today])
+
+  // 草案里那些「今天排了、但你通常做不完」的条目：标一句提醒，并给一个一键挪到明天
+  function cautionOf(row) {
+    const cap = draft && draft.insights ? draft.insights.capacity_min : null
+    if (!cap || !row.typical_min || row.action !== 'schedule' || row.date !== today) return null
+    if (row.typical_min <= cap) return null
+    return `今天只有约 ${cap} 分钟，这条你通常要 ${fmtMinutes(row.typical_min)}`
+  }
+
+  function moveProposalToTomorrow(row) {
+    setDraft((current) => ({
+      ...current,
+      proposals: current.proposals.map((item) =>
+        item.node_id === row.node_id
+          ? { ...item, date: tomorrow, after: '挪到明天，今天先留着力气' }
+          : item,
+      ),
+    }))
+    notify('这条挪到明天了，其余不动', 'ok')
+  }
 
   const [step, setStep] = useState('ask')
   const [answers, setAnswers] = useState({ reason: null, time: null, goal: null })
@@ -42,9 +69,15 @@ export default function Restart({ navigate }) {
     let candidate = null
     let usedSource = 'rule'
     let error = ''
-    const ai = await aiRestart(buildSnapshot(state), answers)
+    // 规则草案先生成一份：既是兜底，也提供「今天有多少时间 / 历史用时」这些上下文
+    const ruleDraft = buildRestartDraft(state, answers)
+    const history = restartHistory(state)
+    const ai = await aiRestart(buildSnapshot(state), answers, {
+      capacity: ruleDraft.insights ? ruleDraft.insights.capacity_min : null,
+      history,
+    })
     if (ai.ok) {
-      candidate = ai.draft
+      candidate = { ...ai.draft }
       usedSource = 'model'
     } else {
       error = ai.error || ''
@@ -52,7 +85,15 @@ export default function Restart({ navigate }) {
     if (!candidate) {
       // 本地规则生成有一点点延迟，避免点完瞬间跳过去
       await new Promise((resolve) => setTimeout(resolve, 420))
-      candidate = buildRestartDraft(state, answers)
+      candidate = ruleDraft
+    }
+    // 模型草案不带这几项展示信息时，用规则算出来的补上
+    candidate.insights = candidate.insights || ruleDraft.insights
+    if (Array.isArray(candidate.proposals)) {
+      const map = new Map(history.map((item) => [item.node_id, item.typical_min]))
+      candidate.proposals = candidate.proposals.map((row) =>
+        row.typical_min || !map.get(row.node_id) ? row : { ...row, typical_min: map.get(row.node_id) },
+      )
     }
     setSource(usedSource)
     setAiNote(error)
@@ -265,6 +306,29 @@ export default function Restart({ navigate }) {
             </p>
             <h2 className="panel__title">{liveSummary || draft.summary}</h2>
             <p className="hint hint--tight">勾选你同意的部分，没勾的保持原样。截止日和已锁定节点不会被改。</p>
+            {draft.insights && (draft.insights.capacity_label || draft.insights.planned_today_min) ? (
+              <div className="insight-card">
+                {draft.insights.capacity_label ? <p className="insight-card__row">{draft.insights.capacity_label}</p> : null}
+                {draft.insights.planned_today_min ? (
+                  <p className="insight-card__row">
+                    这份草案在今天的安排约 {draft.insights.planned_today_min} 分钟
+                    {draft.insights.capacity_min && draft.insights.planned_today_min > draft.insights.capacity_min
+                      ? '，可能装不下，可以把下面的勾去掉'
+                      : ''}
+                  </p>
+                ) : null}
+                {draft.insights.rhythm_label ? (
+                  <p className="insight-card__row insight-card__row--quiet">
+                    你通常 {draft.insights.rhythm_label} 更在状态，难的可以放这个时段
+                  </p>
+                ) : null}
+                {draft.insights.history_count ? (
+                  <p className="insight-card__row insight-card__row--quiet">
+                    其中 {draft.insights.history_count} 条用了你自己的历史用时来估算
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {source === 'model' ? (
               <p className="ai-hint ai-hint--tight">
                 <span className="ai-hint__text">模型给的建议已经过本地校验：越界的丢弃、漏项的补成「需要你决定」。</span>
@@ -304,6 +368,17 @@ export default function Restart({ navigate }) {
                           <span className="proposal__after">{row.after}</span>
                         </p>
                         <p className="proposal__reason">{row.reason}</p>
+                        {row.typical_min ? (
+                          <p className="proposal__meta">你通常要 {fmtMinutes(row.typical_min)}</p>
+                        ) : null}
+                        {cautionOf(row) ? (
+                          <p className="proposal__caution">
+                            {cautionOf(row)}
+                            <button type="button" className="link-btn" onClick={() => moveProposalToTomorrow(row)}>
+                              挪到明天
+                            </button>
+                          </p>
+                        ) : null}
                       </li>
                     )
                   })}

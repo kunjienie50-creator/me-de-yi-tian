@@ -576,16 +576,52 @@
 
 .bubble {
   position: relative;
-  max-width: 260px;
-  padding: 9px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 296px;
+  padding: 12px 18px 13px;
   margin: 0;
+  border: 0;
+  font-family: inherit;
   font-size: 13.5px;
   line-height: 1.5;
   text-align: center;
+  color: var(--ink);
   background: var(--surface-raised);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
+  cursor: pointer;
   animation: bubble-in 0.4s ease both;
+}
+
+/* 广告语放在气泡里，字号比原来标题下那行大得多 */
+.bubble__slogan {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--peach-deep);
+}
+
+.bubble__slogan::after {
+  content: ' ↻';
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.5;
+}
+
+.bubble__hint {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* 摸猫时只说这一句，不再叠标语 */
+.bubble__hint--line {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 .bubble::after {
@@ -2689,27 +2725,6 @@ button:focus-visible {
   height: 148px;
 }
 
-/* ---------- 广告语 ---------- */
-.slogan {
-  display: block;
-  margin-top: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--peach-deep);
-  text-align: left;
-  cursor: pointer;
-  opacity: 0.9;
-}
-
-.slogan::after {
-  content: ' ↻';
-  font-size: 11px;
-  opacity: 0.55;
-}
-
 /* ---------- 首页事件箱入口 ---------- */
 .box-card {
   display: flex;
@@ -3315,4 +3330,67 @@ button:focus-visible {
   gap: 10px;
   margin-top: 6px;
   flex-wrap: wrap;
+}
+
+/* 「在截止日之外」每行右侧的操作按钮 */
+.mini-list__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-list__row .mini-list__title {
+  flex: 1;
+}
+
+.mini-btn--text {
+  width: auto;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--peach-deep);
+  white-space: nowrap;
+}
+
+/* ---- 草案里的上下文卡：今天有多少时间 / 你的节奏 ---- */
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-panel-gradient);
+  border: 1px solid var(--line);
+}
+
+.insight-card__row {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.insight-card__row--quiet {
+  color: var(--ink-soft);
+}
+
+/* 建议项下面的「你通常要 60 分钟」 */
+.proposal__meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* 草案里「今天装不下」的提醒 */
+.proposal__caution {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--warn);
+}
+
+.proposal__caution .link-btn {
+  margin-left: 6px;
+  font-size: 12px;
+  vertical-align: 1px;
 }

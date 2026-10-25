@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DemoTag, Empty, Field, SectionTitle, Sheet, Toggle } from '../components/ui.jsx'
-import { fmtClock, fmtMinutes, fmtRelative, fmtStopwatch, isoToLocalInput, minutesBetween, todayKey } from '../lib/dates.js'
+import { diffDays, fmtClock, fmtMinutes, fmtRelative, fmtStopwatch, isoToLocalInput, minutesBetween, todayKey } from '../lib/dates.js'
 import { compressImage, deleteImage, getImageUrl, putImage } from '../lib/images.js'
 import { clearLeakDismiss, timerLeak } from '../lib/timer.js'
 import { uid, useStore } from '../store.jsx'
@@ -84,7 +84,10 @@ export default function Timer() {
     notify(lit ? '记录了时间，并点亮了一个节点' : '时间记录好了', 'ok')
   }
 
-  const undone = state.tasks.filter((task) => !task.done && task.status !== 'cancelled')
+  // 挂计时的候选列表：先按日期从早到晚（过期 → 今天 → 明天…），同一天再按序号
+  const undone = state.tasks
+    .filter((task) => !task.done && task.status !== 'cancelled' && task.status !== 'boxed')
+    .sort((a, b) => diffDays(b.date, a.date) || (a.seq || 999) - (b.seq || 999) || a.title.localeCompare(b.title, 'zh'))
 
   return (
     <main className="screen">
@@ -207,13 +210,15 @@ export default function Timer() {
               <li key={task.id}>
                 <button type="button" className="pick" onClick={() => startFor(task)}>
                   <span>{task.title}</span>
-                  <span className="pick__meta">{fmtRelative(task.date)}</span>
+                  <span className="pick__meta">
+                    {diffDays(today, task.date) < 0 ? `已过期 · ${fmtRelative(task.date)}` : fmtRelative(task.date)}
+                  </span>
                 </button>
               </li>
             ))
           ) : (
             <li>
-              <p className="hint">今天没有未完成的任务，先记一件事吧。</p>
+              <p className="hint">暂时没有未完成的事，先记一件吧。</p>
             </li>
           )}
         </ul>

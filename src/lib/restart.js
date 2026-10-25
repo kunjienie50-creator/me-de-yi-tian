@@ -2,6 +2,7 @@
 // 对应《提示词_任务拆解与任务重排.md》Prompt B 的契约；演示模式下草案由本地规则生成，
 // 但同样必须经过「每个未完成节点显式出现」以及「不得改 DDL / 不得删任务 / 不得移锁定项」的校验。
 import { diffDays, fmtMinutes, fmtRelative, todayKey } from './dates.js'
+import { capacityFromAnswer, estimateFor, rhythmOf } from './memory.js'
 
 export const REASON_OPTIONS = [
   { value: 'underestimated', label: '估时预估太短' },
@@ -23,6 +24,22 @@ export const GOAL_OPTIONS = [
   { value: 'pause', label: '想缓一缓' },
   { value: 'unknown', label: '还没想好' },
 ]
+
+/** 交给模型（和界面）的历史用时：样本不足 3 条的 typical_min 为 null，避免拿巧合当规律 */
+export function restartHistory(state) {
+  return collectRestartNodes(state).map((node) => {
+    const memory = estimateFor(node, state)
+    const enough = memory.samples >= 3
+    return {
+      node_id: node.id,
+      title: node.title,
+      est_min: Number(node.est_min) || null,
+      typical_min: enough ? memory.minutes : null,
+      samples: memory.samples,
+      level: memory.level,
+    }
+  })
+}
 
 export function defaultAnswers() {
   return { reason: null, time: null, goal: null }
@@ -113,6 +130,22 @@ export function buildRestartDraft(state, answers) {
   const lessTime = answers.time === 'less'
   const moreTime = answers.time === 'more'
   const pause = answers.goal === 'pause'
+  // 用户对「今天还有多少时间」的回答，只用来算容量，不写进任何任务字段
+  const capacity = capacityFromAnswer(answers.time)
+  const rhythm = rhythmOf(state)
+  // 每条节点：你过去做这类事通常要多久（样本不足时等于原估时）
+  const history = new Map()
+  nodes.forEach((node) => {
+    const memory = estimateFor(node, state)
+    history.set(node.id, { ...memory, fallback: Number(node.est_min) || null })
+  })
+  // 历史用时：只有样本够 3 条时才拿出来说「你通常要…」；不够就用原估时，只当容量参考
+  const historyMinutes = (node) => {
+    const item = history.get(node.id)
+    return item && item.samples >= 3 && item.minutes ? item.minutes : null
+  }
+  const plannedMinutes = (node) => historyMinutes(node) || Number(node.est_min) || null
+  const typicalOf = (node) => historyMinutes(node) || Number(node.est_min) || null
 
   const proposals = []
   const suggestCancel = []
@@ -121,9 +154,10 @@ export function buildRestartDraft(state, answers) {
 
   nodes.forEach((node) => {
     const project = node.projectId ? state.projects.find((p) => p.id === node.projectId) : null
-    const ddl = project ? project.ddl : node.date
-    const ddlPassed = diffDays(ddl, today) > 0
-    const ddlToday = diffDays(ddl, today) === 0
+    // 普通任务没有硬截止日（date 只是原计划的那天），所以不因为「日期过了」就变成待决定
+    const ddl = project ? project.ddl : null
+    const ddlPassed = ddl ? diffDays(ddl, today) > 0 : false
+    const ddlToday = ddl ? diffDays(ddl, today) === 0 : false
     const before = `原定 ${fmtRelative(node.date, today)}，未完成`
 
     if (node.locked) {
@@ -177,6 +211,26 @@ export function buildRestartDraft(state, answers) {
       return
     }
 
+    // 今天的时间装不下这件（按你的历史用时算），就建议往后挪，并在理由里说清两个数字
+    const typical = historyMinutes(node)
+    const planned = plannedMinutes(node)
+    const normalDay = capacity ? capacity.minutes : null
+    if (normalDay && planned && planned > normalDay && !moreTime) {
+      proposals.push({
+        node_id: node.id,
+        action: 'schedule',
+        date: addDay(today, 1),
+        before,
+        after: '挪到明天，今天先留着力气',
+        reason: typical
+          ? `今天只有约 ${normalDay} 分钟，这件事你通常要 ${typical} 分钟，先留到明天`
+          : `今天只有约 ${normalDay} 分钟，这件事预估要 ${planned} 分钟，先留到明天`,
+        typical_min: typical || null,
+        capacity_min: normalDay,
+      })
+      return
+    }
+
     if (moreTime) {
       proposals.push({
         node_id: node.id,
@@ -184,7 +238,8 @@ export function buildRestartDraft(state, answers) {
         date: today,
         before,
         after: `${dayLabel(today, today)}补上`,
-        reason: reasonOf(answers),
+        reason: typical ? `你通常要 ${typical} 分钟，今天时间宽裕，可以补上` : reasonOf(answers),
+        typical_min: typical,
       })
       return
     }
@@ -197,10 +252,17 @@ export function buildRestartDraft(state, answers) {
       before,
       after: lessTime ? '挪到明天，今天少排一点' : `${dayLabel(today, today)}补上`,
       reason: reasonOf(answers),
+      typical_min: typical || null,
     })
   })
 
   const summary = buildSummary({ proposals, suggestCancel, askUser, conflicts, today, nodes })
+  const plannedToday = proposals
+    .filter((item) => item.action === 'schedule' && item.date === today)
+    .reduce((sum, item) => {
+      const node = nodes.find((n) => n.id === item.node_id)
+      return sum + (node ? typicalOf(node) || 0 : 0)
+    }, 0)
 
   return {
     summary,
@@ -208,6 +270,14 @@ export function buildRestartDraft(state, answers) {
     suggest_cancel: suggestCancel,
     ask_user: askUser,
     conflicts,
+    // 这些只是展示用的上下文，不会被写进任务
+    insights: {
+      capacity_min: capacity ? capacity.minutes : null,
+      capacity_label: capacity ? capacity.label : null,
+      planned_today_min: plannedToday,
+      rhythm_label: rhythm ? rhythm.label : null,
+      history_count: [...history.values()].filter((item) => item.samples >= 3).length,
+    },
     meta: { mode: 'rule-demo', generated_at: new Date().toISOString(), node_count: nodes.length },
   }
 }

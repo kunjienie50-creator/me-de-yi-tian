@@ -117,6 +117,15 @@ HANDOFF.md              本文件（面向开发者）
 
 ---
 
+## 5.5 用户记忆（2026-10-25 新增）
+
+- 数据：`state.memory.samples[]`，每条 `{id, taskId, title, tag, est, actual, bucket, source:'timer', at}`，上限 300 条。**只在 `stop_timer` 里写**（`src/store.jsx`），睡前校正不写。
+- 计算：`src/lib/memory.js` —— `estimateFor`（分类×时长档 → 分类整体 → 放弃，样本 <3 不给结论）、`rhythmOf`（3 小时滑窗）、`tagSummary`、`forgetMemory`。
+- 消费：`src/lib/restart.js` 的 `buildRestartDraft` 用 `capacityFromAnswer`（more=180 / same=90 / less=45 分钟）和 `estimateFor` 决定「今天装不下就排明天」，理由里带两个数字；`restartHistory(state)` 把历史用时喂给模型（`today_capacity_min` + `node_history`）。
+- 界面：草案顶部 `.insight-card`（今天多少分钟 / 草案排了多少 / 你的节奏窗口 / 几条用了历史），每条建议可显示「你通常要 X」；今天装不下的条目给 `.proposal__caution` + 一键「挪到明天」（只改这一条）。设置页「你的节奏」可查可清除。
+- 边界：记忆只影响建议与提示，不改 DDL、不删任务、不动 locked；改完仍走 `validateRestartDraft`。
+- 顺手修的规则：普通任务没有硬截止日，重启草案不再把「日期已过」判成冲突，而是正常顺延。
+
 ## 6. 大模型怎么接的（要改 Prompt 就从这里入手）
 
 链路：`src/lib/ai.js` → `POST /api/ai/{decompose|restart|note}` → `server/ai.js` → `https://api.deepseek.com/chat/completions`（`response_format: json_object`）。

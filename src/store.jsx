@@ -20,6 +20,7 @@ const defaults = () => ({
   restart: { answers: { reason: null, time: null, goal: null }, draft: null, adopted: [], appliedAt: null, dismissedAt: null },
   box: [], // 事件箱：还没定下来、暂时做不完的事都先放这儿
   customTags: [], // 用户自己加的分类
+  memory: { samples: [] }, // 用户记忆：每条 = 一次真实计时（est 与 actual）
   undo: [],
 })
 
@@ -35,6 +36,7 @@ function initState() {
   merged.projects = (merged.projects || []).map((project) => ({ tag: guessTagId(project.title), ...project }))
   merged.box = merged.box || []
   merged.customTags = merged.customTags || []
+  merged.memory = merged.memory && Array.isArray(merged.memory.samples) ? merged.memory : { samples: [] }
   // 老数据没有序号：按项目内日期先后补一个，保证「前驱在前」有依据
   const byProject = new Map()
   merged.tasks.forEach((task) => {
@@ -139,14 +141,20 @@ function reducer(state, action) {
               : task,
           )
         : state.tasks
+      // 真实用时是唯一可信的记忆来源：只在这条计时挂了任务、且任务有估时时记一条
+      const sourceTask = session.taskId ? state.tasks.find((task) => task.id === session.taskId) : null
+      const withMemory = appendSample(state, makeSample(sourceTask, session.minutes, session.endedAt))
       return {
-        ...state,
+        ...withMemory,
         timer: null,
         sessions: [...state.sessions, session],
         tasks,
         memorials: action.memorial ? [...state.memorials, action.memorial] : state.memorials,
       }
     }
+
+    case 'forget_memory':
+      return forgetMemory(state, action.tag || null)
 
     case 'discard_timer':
       return { ...state, timer: null }

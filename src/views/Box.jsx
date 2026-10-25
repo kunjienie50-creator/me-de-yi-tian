@@ -39,6 +39,8 @@ export default function Box({ navigate }) {
   }
 
   function takeOut(item, date) {
+    // 过去的日子没法再排期，选到过去就按今天算
+    const target = date && date < today ? today : date
     dispatch({
       type: 'box_to_task',
       itemId: item.id,
@@ -49,7 +51,7 @@ export default function Box({ navigate }) {
         title: item.title,
         tag: item.tag || guessTagId(item.title),
         category: '',
-        date,
+        date: target,
         est_min: null,
         done: false,
         status: 'todo',
@@ -146,6 +148,7 @@ export default function Box({ navigate }) {
                         className="input"
                         type="date"
                         defaultValue={today}
+                        min={today}
                         onChange={(event) => {
                           if (event.target.value) takeOut(item, event.target.value)
                         }}

@@ -195,7 +195,7 @@ export async function aiDecompose(input, granularity = 'default') {
 }
 
 // 重排：快照 + 三个回答 → 草案（由调用方再过 validateRestartDraft）
-export async function aiRestart(snapshot, answers) {
+export async function aiRestart(snapshot, answers, extra = {}) {
   if (MODE === 'direct') {
     const today = dayKey(0)
     const tomorrow = dayKey(1)

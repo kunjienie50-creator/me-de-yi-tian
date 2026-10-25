@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Badge, DemoTag, Field, SectionTitle } from '../components/ui.jsx'
 import Cat from '../components/Cat.jsx'
 import { aiStatus } from '../lib/ai.js'
+import { tagSummary, rhythmOf } from '../lib/memory.js'
+import { tagMeta } from '../lib/tags.js'
 import { fmtBytes, storageBytes } from '../lib/storage.js'
 import { countImages, clearImages } from '../lib/images.js'
 import { useStore } from '../store.jsx'
@@ -12,6 +14,9 @@ export default function Settings({ navigate }) {
   const [photos, setPhotos] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [ai, setAi] = useState(null)
+
+  const summary = tagSummary(state)
+  const rhythm = rhythmOf(state)
 
   useEffect(() => {
     setSize(storageBytes(state))
@@ -94,6 +99,40 @@ export default function Settings({ navigate }) {
         <SectionTitle>小猫陪伴</SectionTitle>
         <p className="hint hint--left">点击界面，小猫会动一动；每点亮一件任务，它会翻滚一次庆祝。</p>
         <Cat mood="idle" className="cat--settings" />
+      </section>
+
+      <section className="panel">
+        <SectionTitle>你的节奏</SectionTitle>
+        <p className="hint hint--left">
+          这些来自你自己的计时记录：样本不足 3 条的分类不会拿出来说事，也不会影响截止日和已锁定的安排。
+        </p>
+        {summary.length ? (
+          <ul className="kv-list">
+            {summary.map((row) => (
+              <li key={row.tag}>
+                <span>{tagMeta(state, row.tag)?.label || '其他'}</span>
+                <span>
+                  通常 {Math.round(row.typical)} 分钟 · {row.count} 条
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="hint hint--left">还没有记录。给任务计几次时，这里会长出你自己的规律。</p>
+        )}
+        {rhythm ? <p className="hint hint--left">你通常在 {rhythm.label} 更在状态（{rhythm.samples} 次计时）。</p> : null}
+        {summary.length ? (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              dispatch({ type: 'forget_memory', tag: null })
+              notify('已清空用时记忆', 'ok')
+            }}
+          >
+            忘掉这些记忆
+          </button>
+        ) : null}
       </section>
 
       <section className="panel">

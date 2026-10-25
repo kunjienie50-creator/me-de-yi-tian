@@ -28,6 +28,11 @@ export const RESTART_SYSTEM = `你是「me的一天」里负责次日重排的�
 4. restart_nodes 里每个 node_id 必须恰好出现在 proposals / keep_today / suggest_cancel / ask_user / conflicts 中的一类里，不许漏、不许重复。
 5. 不许评价用户、不许推断「你失败了」；没回答就当未知。
 
+给你额外两个字段（只用于判断，不要原样回传）：
+- today_capacity_min：用户对「今天大概有多少时间」的回答换算成的分钟数（null 表示不确定）；
+- node_history：每个节点的历史用时 {node_id, typical_min（你过去做这类事通常要多久）, samples（样本数）, est_min}。
+用法：如果某节点的 typical_min 明显大于 today_capacity_min，优先建议排到明天，并在 reason 里同时写出两个数字，例如「今天只有约 45 分钟，这件事你通常要 60 分钟，先留到明天」。样本数小于 3 时不要拿它当结论。
+
 字段规则：
 - proposals 里 action 只能是 schedule 或 adjust_est：
   schedule 必须带 date，且只能是给定的 today 或 tomorrow；
@@ -69,10 +74,14 @@ export function buildDecomposeUser({ input, granularity }) {
   return `目标：${input}\n${tone}`
 }
 
-export function buildRestartUser({ snapshot, answers, today, tomorrow }) {
+export function buildRestartUser({ snapshot, answers, today, tomorrow, capacity, history }) {
   return [
     `今天：${today}`,
     `明天：${tomorrow}`,
+    `today_capacity_min：${capacity == null ? 'null' : capacity}`,
+    '',
+    'node_history（只读，samples 小于 3 时不要当结论）：',
+    JSON.stringify(history || [], null, 2),
     '',
     '快照（只读）：',
     JSON.stringify(snapshot, null, 2),

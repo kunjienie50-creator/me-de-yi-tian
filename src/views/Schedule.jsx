@@ -3,7 +3,7 @@ import { Badge, DemoTag, Empty, Pips } from '../components/ui.jsx'
 import { colorVars, projectColorOf } from '../lib/colors.js'
 import { addDays, dayRange, diffDays, fmtMinutes, fmtRelative } from '../lib/dates.js'
 import { tagMeta } from '../lib/tags.js'
-import { clampToNeighbors, detectConflicts, earliestDate, orderConflicts, sortBySeq } from '../lib/schedule.js'
+import { clampToNeighbors, detectConflicts, orderConflicts, sortBySeq } from '../lib/schedule.js'
 import { PRIORITY_META } from '../lib/decompose.js'
 import { projectNodes, projectProgress, useStore } from '../store.jsx'
 
@@ -28,8 +28,10 @@ export default function Schedule({ projectId, navigate }) {
     )
   }
 
-  const minDate = earliestDate(nodes, today)
-  const days = dayRange(minDate, project.ddl > minDate ? project.ddl : minDate)
+  // 排期只排今天和以后：过去的日子不显示，落在那里的节点进「在截止日之外」（可以一键挪到今天）
+  const minDate = today
+  const endDate = diffDays(minDate, project.ddl) < 0 ? minDate : project.ddl
+  const days = dayRange(minDate, endDate)
 
   const grouped = days.map((date) => ({
     date,
@@ -46,7 +48,7 @@ export default function Schedule({ projectId, navigate }) {
     }
     const index = nodes.findIndex((item) => item.id === node.id)
     const wanted = addDays(node.date, delta)
-    const next = clampToNeighbors(nodes, index, wanted, minDate, project.ddl)
+    const next = clampToNeighbors(nodes, index, wanted, minDate, endDate)
     if (next.error) {
       notify(next.error, 'warn')
       return
@@ -68,7 +70,7 @@ export default function Schedule({ projectId, navigate }) {
       notify('这是第一个节点，前面没有可以堆叠的', 'warn')
       return
     }
-    const result = clampToNeighbors(nodes, index, prev.date, minDate, project.ddl)
+    const result = clampToNeighbors(nodes, index, prev.date, minDate, endDate)
     if (result.error) {
       notify(result.error, 'warn')
       return
@@ -78,6 +80,24 @@ export default function Schedule({ projectId, navigate }) {
       return
     }
     dispatch({ type: 'set_changes', changes: [{ id: node.id, date: prev.date }], label: `把「${node.title}」堆到 ${prev.date}` })
+  }
+
+  // 过期节点挪回今天：连同它后面还在过去的节点一起挪，否则前驱规则会拦住它
+  function pullToToday(node) {
+    const index = nodes.findIndex((item) => item.id === node.id)
+    const behind = nodes.slice(index).filter((item) => String(item.date) < String(today) && !item.done)
+    if (!behind.length) return
+    const locked = behind.find((item) => item.locked)
+    if (locked) {
+      notify(`「${locked.title}」已锁定，先解锁再挪`, 'warn')
+      return
+    }
+    dispatch({
+      type: 'set_changes',
+      changes: behind.map((item) => ({ id: item.id, date: today })),
+      label: `把 ${behind.length} 个节点挪到今天`,
+    })
+    notify(behind.length > 1 ? `这 ${behind.length} 个节点一起挪到今天了` : '挪到今天了', 'ok')
   }
 
   return (
@@ -211,9 +231,14 @@ export default function Schedule({ projectId, navigate }) {
           <p className="panel__eyebrow">在截止日之外</p>
           <ul className="mini-list">
             {loose.map((node) => (
-              <li key={node.id}>
+              <li key={node.id} className="mini-list__row">
                 <span className="mini-list__date">{fmtRelative(node.date, today)}</span>
                 <span className="mini-list__title">{node.title}</span>
+                {String(node.date) < String(today) ? (
+                  <button type="button" className="mini-btn mini-btn--text" onClick={() => pullToToday(node)}>
+                    挪到今天
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

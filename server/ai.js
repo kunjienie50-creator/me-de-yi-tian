@@ -100,7 +100,7 @@ export async function runDecompose({ input, granularity }) {
   return { draft: data, usage }
 }
 
-export async function runRestart({ snapshot, answers }) {
+export async function runRestart({ snapshot, answers, capacity = null, history = [] }) {
   const today = dayKey(0)
   const tomorrow = dayKey(1)
   if (aiConfig().mock) {
@@ -125,7 +125,7 @@ export async function runRestart({ snapshot, answers }) {
     draft.proposals = draft.proposals.filter((row) => open.get(row.node_id)?.locked !== true)
     return { draft, usage: null, today, tomorrow }
   }
-  const user = buildRestartUser({ snapshot, answers, today, tomorrow })
+  const user = buildRestartUser({ snapshot, answers, today, tomorrow, capacity, history })
   const { data, usage } = await callDeepSeek(RESTART_SYSTEM, user, { temperature: 0.2, maxTokens: 1600 })
   return { draft: data, usage, today, tomorrow }
 }
