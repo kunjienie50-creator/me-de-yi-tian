@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">me的一天</string>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#fff7fc</item>
+        <item name="android:navigationBarColor">#fff7fc</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#fff7fc</item>
+        <item name="android:colorAccent">#de85c6</item>
+    </style>
+</resources>

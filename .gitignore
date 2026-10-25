@@ -12,3 +12,11 @@ dist-ssr
 # 本地密钥（不要提交）
 .env
 .env.local
+
+# Android local toolchains, builds and signing secrets
+.android-signing/
+android/.gradle/
+android/local.properties
+android/**/build/
+releases/*.apk
+releases/*.idsig

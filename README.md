@@ -17,6 +17,12 @@
 
 手机打开后用浏览器菜单「添加到主屏幕」，观感更接近 App。每台设备的数据独立存在各自的浏览器里，互不同步。
 
+## Android APK 与矢量图标
+
+已提供 Android 8.0 及以上的离线封装，应用图标使用 tb.png 经 Adobe Illustrator 彩色描摹扩展后的矢量设计。安装包在本机 `releases/me-day-0.1.3.apk`（构建产物不提交到 Git）；矢量原稿在 `design/app-icon/`。
+
+构建、签名备份和验证范围见 [android/README.md](./android/README.md)。APK 内的数据与浏览器网页版独立存储。
+
 ## 技术栈
 
 - Vite 7 + React 19（JavaScript，非 TypeScript）
@@ -49,7 +55,7 @@ esbuild 的平台二进制会随依赖一起安装，`--ignore-scripts` 不影�
 ## 目录结构
 
 ```
-index.html             页面骨架、移动端 viewport、emoji favicon
+index.html             页面骨架、移动端 viewport、矢量 App 图标
 vite.config.js         Vite 配置（host: true 便于手机访问）
 src/main.jsx           React 挂载入口
 server/ai.js           本地 AI 代理：把三处调用转给 DeepSeek（只用本机 .env 的密钥）

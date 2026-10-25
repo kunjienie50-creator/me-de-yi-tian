@@ -1,0 +1,132 @@
+button.task-row__check.task-check {
+  position: relative;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 0;
+  padding: 4px;
+  overflow: visible;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  perspective: 420px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button.task-row__check.task-check.is-on { background: transparent; border: 0; transform: none; animation: none; }
+.task-check::before {
+  content: '';
+  position: absolute;
+  inset: 28px 7px 1px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #74498735, transparent 70%);
+  transform: scaleY(.6);
+  transition: opacity 180ms ease, scale 220ms ease;
+  pointer-events: none;
+}
+.task-check__tilt {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(-6deg + var(--check-tilt-x, 0deg))) rotateY(calc(7deg + var(--check-tilt-y, 0deg)));
+  transition: transform 180ms ease, translate 180ms ease, scale 180ms ease;
+  pointer-events: none;
+}
+.task-check__spin, .task-check__glyph {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.task-check__glyph::before, .task-check__glyph::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #794b86;
+  -webkit-mask: var(--check-art) center / contain no-repeat;
+  mask: var(--check-art) center / contain no-repeat;
+  transform: translate(1px, 2px) translateZ(0);
+  opacity: .55;
+}
+.task-check__glyph::after { transform: translate(2px, 4px) translateZ(-2px); opacity: .22; }
+.task-check__paint {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: translateZ(5px);
+  filter: drop-shadow(0 1px 1px #a3599a30);
+  user-select: none;
+  pointer-events: none;
+}
+.task-check__fallback { display: none; }
+.task-check:focus-visible .task-check__tilt { translate: 0 -2px; scale: 1.08; }
+.task-check:active .task-check__tilt { translate: 0 2px; scale: .9; }
+.task-check:active::before { opacity: .5; scale: .8; }
+@media (hover: hover) and (pointer: fine) {
+  .task-check:hover .task-check__tilt { translate: 0 -2px; scale: 1.1; }
+  .task-check:hover::before { scale: 1.14; opacity: .8; }
+  .task-check:active .task-check__tilt { translate: 0 2px; scale: .9; }
+}
+.task-check__spin[data-spinning='true'] { animation: task-check-spin 480ms cubic-bezier(.22,.62,.3,1) both; }
+@keyframes task-check-spin {
+  0% { transform: rotateZ(0deg) scale(1); filter: blur(0); opacity: 1; }
+  32% { transform: rotateZ(-210deg) scale(.73); filter: blur(2.6px); opacity: .55; }
+  72% { transform: rotateZ(-610deg) scale(1.12); filter: blur(.5px); opacity: .95; }
+  100% { transform: rotateZ(-720deg) scale(1); filter: blur(0); opacity: 1; }
+}
+.task-check-fx {
+  position: fixed;
+  z-index: 110;
+  display: block;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  perspective: 420px;
+  isolation: isolate;
+}
+.task-check-fx__echo { position: absolute; inset: 4px; animation: task-check-echo 480ms ease-out both; }
+@keyframes task-check-echo {
+  0% { transform: rotateZ(0deg) scale(1); filter: blur(0); opacity: .85; }
+  35% { transform: rotateZ(-240deg) scale(.8); filter: blur(2.5px); opacity: .62; }
+  75% { transform: rotateZ(-610deg) scale(1.15); filter: blur(1px); opacity: .3; }
+  100% { transform: rotateZ(-720deg) scale(1.2); filter: blur(3px); opacity: 0; }
+}
+.task-check-fx__spark {
+  position: absolute;
+  left: calc(50% - var(--spark-size) / 2);
+  top: calc(50% - var(--spark-size) / 2);
+  width: var(--spark-size);
+  height: calc(var(--spark-size) * 1.45);
+  background: #d39cd0;
+  border-radius: 1px;
+  opacity: 0;
+  animation: task-check-scatter 600ms cubic-bezier(.12,.64,.28,1) both;
+  animation-delay: var(--spark-delay);
+}
+.task-check-fx__spark--1 { background: #9e6fae; }
+.task-check-fx__spark--2 { background: #f2cae4; border-radius: 50%; }
+@keyframes task-check-scatter {
+  0% { transform: translate(0, 0) rotate(0deg) scale(.35); opacity: 0; filter: blur(0); }
+  12% { opacity: .85; }
+  70% { opacity: .5; filter: blur(.2px); }
+  100% { transform: translate(var(--spark-x), var(--spark-y)) rotate(var(--spark-turn)) scale(.1); opacity: 0; filter: blur(2.2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-check__tilt { transform: none; transition: none; }
+  .task-check__spin[data-spinning='true'] { animation: none; }
+  .task-check-fx { display: none; }
+  .task-check:hover .task-check__tilt, .task-check:active .task-check__tilt { translate: none; scale: 1; }
+}
+@media (forced-colors: active) {
+  button.task-row__check.task-check { border: 1px solid ButtonText; background: ButtonFace; color: ButtonText; }
+  .task-check__tilt, .task-check::before, .task-check-fx { display: none; }
+  .task-check__fallback { display: inline; font-size: 22px; }
+}

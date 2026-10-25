@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "build:android": "node scripts/build-android.cjs",
+    "verify:android": "node scripts/verify-apk.cjs"
   },
   "dependencies": {
     "react": "^19.0.0",

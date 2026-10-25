@@ -18,6 +18,9 @@ import {
   pickJson,
 } from './prompts.js'
 
+// 安卓离线版（打包进 APK）没有网络与代理，入口处直接短路到本地规则。
+import { isOfflineApp } from './runtime.js'
+
 const ENV = import.meta.env || {}
 
 // 构建期注入（见 vite.config.js 的 define）：
@@ -46,6 +49,8 @@ const STATUS_TTL = 30_000
 // ---------------- proxy 模式（本地 dev） ----------------
 
 async function request(path, { method = 'GET', body, timeout = 50_000 } = {}) {
+  // The packaged app deliberately has no network dependency or proxy probes.
+  if (isOfflineApp()) return { ok: false, source: 'offline', code: 'OFFLINE_APP', error: '离线应用使用本地规则' }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   try {
@@ -153,6 +158,7 @@ async function directHealth() {
 
 export async function aiStatus({ force = false } = {}) {
   const now = Date.now()
+  if (isOfflineApp()) return { at: now, available: false, offline: true, model: '', mock: false, reason: '离线应用使用本地规则' }
   if (!force && cached && now - cached.at < STATUS_TTL) return cached
 
   if (MODE === 'direct') {

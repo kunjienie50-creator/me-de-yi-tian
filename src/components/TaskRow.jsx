@@ -5,6 +5,7 @@ import { useStore } from '../store.jsx'
 import { Badge } from './ui.jsx'
 import Cat from './Cat.jsx'
 import TaskNote from './TaskNote.jsx'
+import TaskCheck from './TaskCheck.jsx'
 
 /**
  * 一条任务。color 用来区分它属于哪个长期目标：
@@ -36,15 +37,7 @@ export default function TaskRow({
     >
       <span className="task-row__stripe" aria-hidden="true" />
 
-      <button
-        type="button"
-        className={`task-row__check ${task.done ? 'is-on' : ''}`}
-        aria-pressed={task.done}
-        aria-label={task.done ? `取消完成：${task.title}` : `标记完成：${task.title}`}
-        onClick={() => onToggle?.(task)}
-      >
-        {task.done ? '✓' : ''}
-      </button>
+      <TaskCheck done={task.done} title={task.title} onToggle={() => onToggle?.(task)} />
 
       <button type="button" className="task-row__main" onClick={() => onOpenTask?.(task)}>
         <TaskNote title={task.title} />

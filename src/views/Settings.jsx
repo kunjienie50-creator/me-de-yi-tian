@@ -4,12 +4,14 @@ import Cat from '../components/Cat.jsx'
 import { aiStatus } from '../lib/ai.js'
 import { tagSummary, rhythmOf } from '../lib/memory.js'
 import { tagMeta } from '../lib/tags.js'
+import { isOfflineApp } from '../lib/runtime.js'
 import { fmtBytes, storageBytes } from '../lib/storage.js'
 import { countImages, clearImages } from '../lib/images.js'
 import { useStore } from '../store.jsx'
 
 export default function Settings({ navigate }) {
   const { state, dispatch, notify, resetAll } = useStore()
+  const offlineApp = isOfflineApp()
   const [size, setSize] = useState(null)
   const [photos, setPhotos] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -34,11 +36,17 @@ export default function Settings({ navigate }) {
   }, [])
 
   function exportJson() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const json = JSON.stringify(state, null, 2)
+    const filename = `me的一天-${new Date().toISOString().slice(0, 10)}.json`
+    if (typeof globalThis.MeDayAndroid?.saveExport === 'function') {
+      globalThis.MeDayAndroid.saveExport(filename, json)
+      return
+    }
+    const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `me的一天-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = filename
     link.click()
     URL.revokeObjectURL(url)
     notify('已导出当前数据（不含照片）', 'ok')
@@ -64,23 +72,29 @@ export default function Settings({ navigate }) {
       </header>
 
       <section className="panel">
-        <SectionTitle>模型</SectionTitle>
+        <SectionTitle>{offlineApp ? '运行模式' : '模型'}</SectionTitle>
         <ul className="kv-list">
           <li>
             <span>状态</span>
             <span>
-              {ai === null ? '检测中…' : ai.available ? `已连接 · ${ai.model}` : '未连接（用离线规则）'}
+              {offlineApp ? '离线模式 · 本地规则' : ai === null ? '检测中…' : ai.available ? `已连接 · ${ai.model}` : '未连接（用离线规则）'}
               {ai?.mock ? ' · mock' : ''}
               {ai?.mode === 'direct' ? ' · 直连' : ''}
             </span>
           </li>
         </ul>
         <p className="hint hint--left">
-          {ai?.mode === 'direct'
-            ? '这版把模型请求直接发到 DeepSeek，密钥随页面下发。只用于演示，请勿放真实额度不限的密钥。'
-            : '密钥只在本机 .env 里，由 server/ai.js 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。'}
+          {offlineApp ? (
+            '页面、字体、猫咪动画均已内置。任务、计时、事件箱和睡前记录可断网使用；目标拆解使用本地规则，数据保存在此应用中。'
+          ) : ai?.mode === 'direct' ? (
+            '这版把模型请求直接发到 DeepSeek，密钥随页面下发。只用于演示，请勿放真实额度不限的密钥。'
+          ) : (
+            <>
+              密钥只在本机 <code>.env</code> 里，由 <code>server/ai.js</code> 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。
+            </>
+          )}
         </p>
-        <div className="btn-row">
+        {!offlineApp && <div className="btn-row">
           <button
             type="button"
             className="btn btn--ghost"
@@ -92,7 +106,7 @@ export default function Settings({ navigate }) {
           >
             重新检测
           </button>
-        </div>
+        </div>}
       </section>
 
       <section className="panel">
