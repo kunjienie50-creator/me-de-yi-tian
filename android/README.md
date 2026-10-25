@@ -1,6 +1,6 @@
 # Android 打包
 
-成品：`../releases/me-day-0.1.3.apk`，应用名 **me的一天**，包名 `com.kunjienie50.meday`。支持 Android 8.0（API 26）及以上。
+成品：`../releases/me-day-0.2.0.apk`，应用名 **me的一天**，包名 `com.kunjienie50.meday`。支持 Android 8.0（API 26）及以上。
 
 ## 构建
 
@@ -23,7 +23,7 @@ node scripts/build-android.cjs
 
 首次构建自动生成本项目专用的发布密钥，存放在根目录 `.android-signing/`；该目录已被 Git 忽略。请将整个目录私下备份，后续覆盖安装必须使用相同密钥。密钥和密码都不在 APK 内，不应提交到 Git 或公开分享。
 
-发布新版本前同时递增 manifest 与 `app/build.gradle` 中的 versionCode，并调整脚本输出文件名。不要删除现有密钥来解决签名问题。
+发布新版本时只需递增根目录 `package.json` 的 `version`：APK 文件名、`SHA256SUMS.txt` 内容和 `node scripts/verify-apk.cjs` 的默认路径都从这里读取。再同步递增 manifest 与 `app/build.gradle` 中的 versionCode（Android 覆盖安装判断用它）。不要删除现有密钥来解决签名问题。
 
 ## 原生适配
 
@@ -59,3 +59,7 @@ Windows aapt2 的 `-A` 把资源目录分隔符写成了 ZIP 文件名中的反�
 ## 0.1.3 桌面图标
 
 按最新要求，Android 桌面图标直接使用 tb.png 原图生成五档尺寸，保留完整画面和配色。版本号为 0.1.3 / versionCode 4；包名、签名、本地域名和离线加载方式保持一致。
+
+## 0.2.0 整合打包
+
+与网页最新功能同步：用户记忆（估时与节奏）用于次日重启草案、计时排序与过去日期修正、计时保存白屏修复，以及任务勾选动效（`TaskCheck`）。版本号统一为 0.2.0 / versionCode 5；APK 文件名改由 `package.json` 的 `version` 推导，`verify-apk.cjs` 默认校验同一版本。包名、发布证书、本地域名与离线加载方式不变，可直接覆盖安装 0.1.x 并保留本地记录。

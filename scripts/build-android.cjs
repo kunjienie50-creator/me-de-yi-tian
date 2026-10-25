@@ -6,6 +6,9 @@ const { verifyApkAssets } = require('./lib/apk-archive.cjs');
 const root = path.resolve(__dirname, '..');
 process.chdir(root);
 const resolve = (...parts) => path.resolve(root, ...parts);
+// APK 文件名只跟 package.json 的 version 走，避免版本号散落在脚本和文档里。
+const { version: appVersion } = require(resolve('package.json'));
+const apkName = `me-day-${appVersion}.apk`;
 const tools = resolve('.dsh-check/android-tools');
 function firstDir(parent, marker) {
   if (!fs.existsSync(parent)) return null;
@@ -54,11 +57,11 @@ if(!fs.existsSync(key)){
   run(path.join(javaHome,'bin/keytool.exe'),['-genkeypair','-keystore',key,'-storetype','JKS','-storepass:file',pass,'-keypass:file',pass,'-alias','me-day','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=me-day, OU=Mobile, O=kunjienie50-creator, C=CN']);
 }
 if(!fs.existsSync(pass))throw Error('Signing password is missing. Restore .android-signing; never replace an existing signing key.');
-const apk=resolve('releases/me-day-0.1.3.apk');
+const apk=resolve('releases',apkName);
 run(java,['-jar',path.join(buildTools,'lib/apksigner.jar'),'sign','--ks',key,'--ks-key-alias','me-day','--ks-pass','file:'+pass,'--out',apk,aligned]);
 run(java,['-jar',path.join(buildTools,'lib/apksigner.jar'),'verify','--verbose','--print-certs',apk]);
 run(path.join(buildTools,'zipalign.exe'),['-c','-p','4',apk]);
 run(path.join(buildTools,'aapt.exe'),['dump','badging',apk]);
 const sha=crypto.createHash('sha256').update(fs.readFileSync(apk)).digest('hex');
-fs.writeFileSync(resolve('releases/SHA256SUMS.txt'),sha+'  me-day-0.1.3.apk\n');
+fs.writeFileSync(resolve('releases/SHA256SUMS.txt'),sha+'  '+apkName+'\n');
 console.log('\nAPK:',apk,'\nBytes:',fs.statSync(apk).size,'\nSHA256:',sha);

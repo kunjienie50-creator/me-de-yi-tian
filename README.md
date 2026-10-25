@@ -19,7 +19,7 @@
 
 ## Android APK 与矢量图标
 
-已提供 Android 8.0 及以上的离线封装，应用图标使用 tb.png 经 Adobe Illustrator 彩色描摹扩展后的矢量设计。安装包在本机 `releases/me-day-0.1.3.apk`（构建产物不提交到 Git）；矢量原稿在 `design/app-icon/`。
+已提供 Android 8.0 及以上的离线封装，应用图标使用 tb.png 经 Adobe Illustrator 彩色描摹扩展后的矢量设计。安装包在本机 `releases/me-day-0.2.0.apk`（构建产物不提交到 Git）；矢量原稿在 `design/app-icon/`。
 
 构建、签名备份和验证范围见 [android/README.md](./android/README.md)。APK 内的数据与浏览器网页版独立存储。
 

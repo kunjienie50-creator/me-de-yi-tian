@@ -1,6 +1,6 @@
 # 交付文件
 
-- `me-day-0.1.3.apk`：Android 8.0 及以上，已用本项目发布密钥签名，内置全部页面素材，可离线打开。
+- `me-day-0.2.0.apk`：Android 8.0 及以上，已用本项目发布密钥签名，内置全部页面素材，可离线打开。
 - 桌面图标：直接使用用户提供的 `tb.png` 原图，保留完整画面。
 - `SHA256SUMS.txt`：APK 文件校验值。
 - 矢量图标原稿：`../design/app-icon/me-day-icon.ai` 和 `me-day-icon.svg`。
