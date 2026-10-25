@@ -66,11 +66,14 @@ export default function Settings({ navigate }) {
             <span>
               {ai === null ? '检测中…' : ai.available ? `已连接 · ${ai.model}` : '未连接（用离线规则）'}
               {ai?.mock ? ' · mock' : ''}
+              {ai?.mode === 'direct' ? ' · 直连' : ''}
             </span>
           </li>
         </ul>
         <p className="hint hint--left">
-          密钥只在本机 <code>.env</code> 里，由 <code>server/ai.js</code> 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。
+          {ai?.mode === 'direct'
+            ? '这版把模型请求直接发到 DeepSeek，密钥随页面下发。只用于演示，请勿放真实额度不限的密钥。'
+            : '密钥只在本机 .env 里，由 server/ai.js 使用，不会发到浏览器。线上静态版没有这个代理，会自动回退到离线规则。'}
         </p>
         <div className="btn-row">
           <button

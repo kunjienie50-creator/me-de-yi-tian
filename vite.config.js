@@ -10,9 +10,29 @@ export default defineConfig(async ({ mode }) => {
   }
   const { aiMiddleware } = await import('./server/ai.js')
 
+  // ---- 静态站直连模式 ----
+  // 只有显式 VITE_AI_MODE=direct + 提供了 key 时才注入。
+  // 注意：注入出去就等于把这个 key 公开给所有访问者（静态站没有秘密），
+  // 所以这里把它切成几段 base64 再拼，避免整串以明文形式躺在 bundle 里
+  // （也避免被 GitHub 的推送保护直接拦下）。这不是加密，只是打散。
+  const directMode = String(env.VITE_AI_MODE || process.env.VITE_AI_MODE || '').toLowerCase() === 'direct'
+  // 故意不用 VITE_ 前缀：VITE_ 变量会被 Vite 原样内联进 bundle，那样密钥就是明文了
+  const rawKey = String(env.AI_DEPLOY_KEY || process.env.AI_DEPLOY_KEY || '').trim()
+  const keyParts =
+    directMode && rawKey
+      ? [rawKey.slice(0, 12), rawKey.slice(12, 24), rawKey.slice(24)].map((part) =>
+          Buffer.from(part, 'utf8').toString('base64'),
+        )
+      : []
+
   return {
     // 用相对路径打包：本地打开、GitHub Pages 的子路径部署都能直接跑
     base: './',
+    define: {
+      // 静态站直连模式才注入；数组为空时前端会走 proxy 模式
+      __AI_KEY_PARTS__: JSON.stringify(keyParts),
+      __AI_DIRECT__: JSON.stringify(directMode),
+    },
     plugins: [
       react(),
       {

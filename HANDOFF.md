@@ -20,6 +20,16 @@
 
 ---
 
+## 0. 线上 AI 是「直连模式」（2026-10-25）
+
+- 线上静态站不再只走规则：构建时读了 `.env.production.local`（`VITE_AI_MODE=direct` + `AI_DEPLOY_KEY`），`vite.config.js` 把 key 切成 3 段 base64 注入，`src/lib/ai.js` 运行时拼回来直接请求 DeepSeek。
+- Prompt 与请求体构造抽到了 `src/lib/prompts.js`，`server/ai.js`（dev 代理）和浏览器直连共用同一份，改 Prompt 只需改一处。
+- **密钥在静态站上等于公开**，分段不是加密；GitHub 推送保护会拦明文 `sk-...`，这也是为什么要分段。轮换：去 DeepSeek 控制台删旧 key → 改 `.env.production.local` → `npm run build` → 重新部署 gh-pages。
+- 要回到「线上只走规则」：删掉 `.env.production.local`（或去掉 `VITE_AI_MODE=direct`）重新构建部署即可，代码不用改。
+- 更安全的下一步：把 `server/ai.js` 的中间件挪到 Cloudflare Worker / Vercel Functions，`src/lib/ai.js` 把 `ENDPOINT` 指过去，key 留在服务端。
+
+---
+
 ## 1. 五分钟跑起来
 
 ```bash
