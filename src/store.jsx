@@ -3,6 +3,7 @@ import { clearState, loadState, saveState } from './lib/storage.js'
 import { SCHEMA_VERSION, createSeedState } from './lib/seed.js'
 import { diffDays, toKey, todayKey } from './lib/dates.js'
 import { guessTagId } from './lib/tags.js'
+import { appendSample, forgetMemory, makeSample } from './lib/memory.js'
 import { applyTheme } from './lib/theme.js'
 
 export function uid(prefix = 'id') {
